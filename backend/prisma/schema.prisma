@@ -1,0 +1,135 @@
+// =============================================================================
+// schema.prisma — Data layer for the Cal.com-style scheduling app
+//
+// Three core models:
+//   1. User         — The admin who owns event types and availability
+//   2. EventType    — A type of meeting the admin offers (e.g. "15 Min Chat")
+//   3. Availability — The admin's available hours per day of the week
+//   4. Booking      — A confirmed meeting slot booked by a guest
+//
+// NOTE: Authentication is skipped for this project. We assume a single
+//       hardcoded admin (User id = 1) is always "logged in".
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Connection URL is configured in prisma.config.ts (Prisma v7 requirement).
+  // The DATABASE_URL env variable is read from the .env file at migration time.
+  provider = "postgresql"
+}
+
+// -----------------------------------------------------------------------------
+// MODEL: User
+// Represents the admin who manages the scheduling page.
+// In a real app, there would be many users. Here, we seed exactly one (id = 1).
+// -----------------------------------------------------------------------------
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations — one admin owns many event types, availability slots, and bookings
+  eventTypes   EventType[]
+  availability Availability[]
+  bookings     Booking[]
+
+  @@map("users") // maps to the "users" table in PostgreSQL
+}
+
+// -----------------------------------------------------------------------------
+// MODEL: EventType
+// Represents a schedulable meeting format the admin creates.
+// Examples: "15 Min Chat", "30 Min Interview", "60 Min Deep Dive"
+// -----------------------------------------------------------------------------
+model EventType {
+  id          Int     @id @default(autoincrement())
+  title       String                        // Display name, e.g. "30 Min Interview"
+  description String?                       // Optional longer description
+  duration    Int                           // Length of the meeting, in minutes
+  slug        String  @unique               // URL-safe identifier, e.g. "30-min-interview"
+  isActive    Boolean @default(true)        // Soft-delete / hide without removing
+  color       String  @default("#6366f1")   // UI accent color for this event type
+
+  // Foreign key — which admin owns this event type
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // A single event type can have many bookings over time
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("event_types")
+}
+
+// -----------------------------------------------------------------------------
+// MODEL: Availability
+// Defines when the admin is available, per day of the week.
+// One row per day (0 = Sunday … 6 = Saturday).
+// startTime / endTime are stored as "HH:MM" strings (24-hour format).
+// Example: { dayOfWeek: 1, startTime: "09:00", endTime: "17:00" } = Mon 9–5
+// -----------------------------------------------------------------------------
+model Availability {
+  id        Int     @id @default(autoincrement())
+  dayOfWeek Int                        // 0 = Sun, 1 = Mon, 2 = Tue ... 6 = Sat
+  startTime String                     // "HH:MM" — e.g. "09:00"
+  endTime   String                     // "HH:MM" — e.g. "17:00"
+  isEnabled Boolean @default(true)    // false = admin is unavailable this day
+
+  // Foreign key — availability belongs to one admin user
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // An admin can only have one availability rule per day
+  @@unique([userId, dayOfWeek])
+  @@map("availability")
+}
+
+// -----------------------------------------------------------------------------
+// MODEL: Booking
+// A confirmed appointment created when a guest books an event type slot.
+// Stores who booked it (bookerName/bookerEmail), when it starts/ends,
+// and the date it falls on (stored separately for easy calendar queries).
+// -----------------------------------------------------------------------------
+model Booking {
+  id          Int           @id @default(autoincrement())
+  bookerName  String                      // Guest's full name
+  bookerEmail String                      // Guest's email address
+  date        DateTime                    // The calendar date of the meeting (date only)
+  startTime   DateTime                    // Full timestamp: date + start hour
+  endTime     DateTime                    // Full timestamp: date + end hour (startTime + duration)
+  status      BookingStatus @default(CONFIRMED)
+  notes       String?                     // Optional message from the guest
+
+  // Which event type was booked (e.g. "30 Min Interview")
+  eventTypeId Int
+  eventType   EventType @relation(fields: [eventTypeId], references: [id], onDelete: Cascade)
+
+  // Which admin's calendar this booking belongs to
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("bookings")
+}
+
+// -----------------------------------------------------------------------------
+// ENUM: BookingStatus
+// Tracks the lifecycle of a booking.
+// -----------------------------------------------------------------------------
+enum BookingStatus {
+  CONFIRMED  // Default — booking is active
+  CANCELLED  // Cancelled by admin or guest
+  COMPLETED  // The meeting has taken place
+}
