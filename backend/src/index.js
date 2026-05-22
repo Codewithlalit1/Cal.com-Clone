@@ -37,16 +37,40 @@ const PORT = process.env.PORT || 3001;
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 // Tells browsers to allow cross-origin requests from the Vite frontend.
-// Without this, the browser blocks all API calls from localhost:5173.
+//
+// WHY A FUNCTION INSTEAD OF A STATIC ARRAY?
+//   Vite automatically increments the port (5173 → 5174 → 5175 …) when the
+//   preferred port is already in use. A hardcoded list breaks every time that
+//   happens. The function below allows ANY localhost port in development so
+//   the server never needs to be updated just because the frontend port changed.
+//
+//   In production, set ALLOWED_ORIGIN in your environment variables and only
+//   that specific origin will be accepted.
+const ALLOWED_ORIGIN_PROD = process.env.ALLOWED_ORIGIN; // e.g. "https://myapp.vercel.app"
+const LOCALHOST_REGEX      = /^http:\/\/localhost(:\d+)?$/;
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173", // Vite dev server (frontend)
-      "http://localhost:3000", // CRA / alternative
-    ],
-    methods:      ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    origin(origin, callback) {
+      // Allow requests with no Origin header (curl, Postman, mobile apps, SSR)
+      if (!origin) return callback(null, true);
+
+      // In production: only the explicitly configured origin is allowed
+      if (process.env.NODE_ENV === "production") {
+        if (ALLOWED_ORIGIN_PROD && origin === ALLOWED_ORIGIN_PROD) {
+          return callback(null, true);
+        }
+        return callback(new Error(`CORS: origin "${origin}" is not allowed`));
+      }
+
+      // In development: allow any localhost port (5173, 5174, 3000, etc.)
+      if (LOCALHOST_REGEX.test(origin)) return callback(null, true);
+
+      callback(new Error(`CORS: origin "${origin}" is not allowed`));
+    },
+    methods:        ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
+    credentials:    true,
   })
 );
 

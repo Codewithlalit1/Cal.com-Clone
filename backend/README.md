@@ -1,112 +1,127 @@
-# Scaler AI Assignment — Backend
+# Backend — REST API
 
-A production-ready Express.js + Prisma backend for a Calendly-like scheduling application.
+A modular Express + Prisma REST API for the Cal.com-style scheduling app.
 
 ## Tech Stack
 
-- **Runtime**: Node.js + TypeScript
+- **Runtime**: Node.js v18+ (ESM — `"type": "module"`)
 - **Framework**: Express.js v5
-- **ORM**: Prisma v7
+- **ORM**: Prisma v7 with `@prisma/adapter-pg`
 - **Database**: PostgreSQL
-- **Validation**: Zod
+- **Validation**: Zod v4
 
 ## Project Structure
 
 ```
 backend/
 ├── prisma/
-│   ├── schema.prisma       # Data models
-│   ├── seed.ts             # Database seeder
-│   └── migrations/         # Auto-generated migrations
+│   ├── schema.prisma         # Data models (source of truth)
+│   ├── seed.js               # Seeds admin user, event types, availability
+│   └── migrations/           # Auto-generated SQL migration history
 ├── src/
-│   ├── lib/
-│   │   └── prisma.ts       # Prisma client singleton
+│   ├── controllers/          # Business logic (one file per resource)
+│   │   ├── eventTypes.controller.js
+│   │   ├── availability.controller.js
+│   │   ├── bookings.controller.js
+│   │   ├── slots.controller.js     ← Availability engine
+│   │   └── public.controller.js    ← Unauthenticated endpoints
+│   ├── routes/               # Thin routing layer (maps HTTP → controller)
+│   │   ├── eventTypes.js
+│   │   ├── availability.js
+│   │   ├── bookings.js
+│   │   ├── slots.js
+│   │   └── public.js
 │   ├── middleware/
-│   │   └── auth.ts         # No-login middleware (userId=1)
-│   ├── routes/
-│   │   ├── eventTypes.ts   # Event type CRUD
-│   │   ├── availability.ts # Availability GET/PUT
-│   │   └── bookings.ts     # Booking create/cancel
-│   ├── types/
-│   │   └── express.d.ts    # Express type augmentation
-│   └── index.ts            # App entry point
-├── prisma.config.ts        # Prisma v7 datasource config
-├── .env                    # Environment variables (git-ignored)
+│   │   └── auth.js           # Dummy auth — sets req.userId = 1
+│   ├── utils/
+│   │   └── slotGenerator.js  # Pure slot-generation + overlap functions
+│   ├── lib/
+│   │   └── prisma.js         # Prisma client singleton
+│   └── index.js              # App entry point + middleware stack
+├── .env                      # Environment variables (git-ignored)
+├── .env.example              # Template — copy to .env and fill in values
 └── package.json
 ```
 
-## Setup
+## Quick Start
 
-### 1. Configure Database
+### 1. Install dependencies
 
-Edit `.env` with your PostgreSQL credentials:
-
-```env
-DATABASE_URL="postgresql://username:password@localhost:5432/scaler_scheduler?schema=public"
-PORT=3001
+```bash
+npm install
 ```
 
-### 2. Run Migrations
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+# Edit .env and set DATABASE_URL to your PostgreSQL connection string
+```
+
+### 3. Run migrations
 
 ```bash
 npx prisma migrate dev --name init
 ```
 
-### 3. Seed Database
+### 4. Seed the database
 
 ```bash
-npm run db:seed
+node prisma/seed.js
 ```
 
-This seeds:
-- **User** (id=1): `admin@scheduler.local` — the hardcoded dummy admin
-- **Event Types**: "15 Min Chat", "30 Min Interview", "60 Min Deep Dive"
-- **Availability**: Mon–Fri 9 AM – 5 PM (Sat/Sun disabled)
+Seed output:
+```
+✅  Admin user ready: "Admin User"  (id = 1)
+✅  "15 Min Chat"         →  /book/15-min-chat        (15 min)
+✅  "30 Min Interview"    →  /book/30-min-interview   (30 min)
+✅  "60 Min Deep Dive"    →  /book/60-min-deep-dive   (60 min)
+✅  Monday … Friday       →  09:00 – 17:00
+⛔  Saturday / Sunday     →  Off
+```
 
-### 4. Start Development Server
+### 5. Start the server
 
 ```bash
-npm run dev
+npm run dev        # node --watch (hot-reload)
+# or
+npm start          # node (no watch)
 ```
 
-Server starts at `http://localhost:3001`
+Server starts at `http://localhost:3001`.
 
 ## API Endpoints
 
-### Authentication
-No login required. All requests automatically use `userId = 1`.
+### Public (no auth)
 
-### Event Types
 | Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/event-types` | List all event types |
-| GET | `/api/event-types/:id` | Get single event type |
+|---|---|---|
+| GET | `/health` | Health check |
+| GET | `/api/public/event-type/:slug` | Event type info for booking page |
+| GET | `/api/slots?date=YYYY-MM-DD&slug=...` | Available time slots |
+
+### Protected (userId = 1 via dummy middleware)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/event-types` | List event types |
 | POST | `/api/event-types` | Create event type |
 | PUT | `/api/event-types/:id` | Update event type |
 | DELETE | `/api/event-types/:id` | Delete event type |
+| GET | `/api/availability` | Get weekly schedule |
+| POST | `/api/availability` | Save weekly schedule |
+| GET | `/api/bookings` | List bookings |
+| POST | `/api/bookings` | Create booking |
+| PATCH | `/api/bookings/:id/cancel` | Cancel booking (soft delete) |
 
-### Availability
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/availability` | Get weekly availability |
-| PUT | `/api/availability` | Update weekly availability |
-
-### Bookings
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/bookings` | List all bookings |
-| GET | `/api/bookings/:id` | Get single booking |
-| POST | `/api/bookings` | Create a booking |
-| PATCH | `/api/bookings/:id/cancel` | Cancel a booking |
-
-## Useful Scripts
+## Scripts
 
 ```bash
-npm run dev             # Start dev server with hot reload
-npm run build           # Compile TypeScript
-npm run start           # Run compiled output
-npm run prisma:migrate  # Run migrations
-npm run prisma:studio   # Open Prisma Studio GUI
-npm run db:seed         # Seed database
-npm run db:reset        # Reset & re-migrate database
+npm run dev              # Start with hot-reload (node --watch)
+npm start                # Start without watch
+npm run prisma:generate  # Regenerate Prisma client
+npm run prisma:migrate   # Run pending migrations
+npm run prisma:studio    # Open Prisma Studio GUI
+npm run db:seed          # Run seed script
+npm run db:reset         # Drop + re-migrate (⚠️ destructive)
 ```
