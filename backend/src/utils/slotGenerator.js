@@ -1,7 +1,7 @@
 // =============================================================================
-// src/utils/slotGenerator.ts — Pure Slot Generation Utility
+// src/utils/slotGenerator.js — Pure Slot Generation Utility
 //
-// This module contains three pure, stateless helper functions used by the
+// This module contains four pure, stateless helper functions used by the
 // slot generation engine. They are isolated here so they can be unit-tested
 // independently of Express and Prisma.
 //
@@ -21,7 +21,7 @@
 //   "09:30" → 570
 //   "17:00" → 1020
 // -----------------------------------------------------------------------------
-export function timeToMinutes(time: string): number {
+export function timeToMinutes(time) {
   const [hours, minutes] = time.split(":").map(Number);
   return hours * 60 + minutes;
 }
@@ -36,7 +36,7 @@ export function timeToMinutes(time: string): number {
 //   570 → "09:30"
 //  1020 → "17:00"
 // -----------------------------------------------------------------------------
-export function minutesToTime(totalMinutes: number): string {
+export function minutesToTime(totalMinutes) {
   const hours   = Math.floor(totalMinutes / 60).toString().padStart(2, "0");
   const minutes = (totalMinutes % 60).toString().padStart(2, "0");
   return `${hours}:${minutes}`;
@@ -65,14 +65,10 @@ export function minutesToTime(totalMinutes: number): string {
 //   The last slot "16:30" ends at 17:00 ✓
 //   "17:00" itself is NOT included because 17:00 + 30 = 17:30 > 17:00 ✗
 // -----------------------------------------------------------------------------
-export function generateTimeSlots(
-  startTime: string,
-  endTime: string,
-  durationMinutes: number
-): string[] {
+export function generateTimeSlots(startTime, endTime, durationMinutes) {
   const startMins = timeToMinutes(startTime);
   const endMins   = timeToMinutes(endTime);
-  const slots: string[] = [];
+  const slots     = [];
 
   for (
     let current = startMins;
@@ -108,11 +104,7 @@ export function generateTimeSlots(
 //     Case 4 (overlap):      [---A---]
 //                         [------B------]
 // -----------------------------------------------------------------------------
-export function isSlotConflicting(
-  slotStart: Date,
-  slotEnd: Date,
-  bookings: Array<{ startTime: Date; endTime: Date }>
-): boolean {
+export function isSlotConflicting(slotStart, slotEnd, bookings) {
   return bookings.some(
     (booking) =>
       slotStart < booking.endTime && slotEnd > booking.startTime
@@ -127,7 +119,7 @@ export function isSlotConflicting(
 //
 // Example: "2024-01-15" → new Date(2024, 0, 15)  (local midnight)
 // -----------------------------------------------------------------------------
-export function parseDateString(dateStr: string): Date {
+export function parseDateString(dateStr) {
   const [year, month, day] = dateStr.split("-").map(Number);
   return new Date(year, month - 1, day); // month is 0-indexed in JS
 }
@@ -140,6 +132,6 @@ export function parseDateString(dateStr: string): Date {
 // Example: buildDateTimeUTC("2024-01-15", "09:30")
 //          → new Date("2024-01-15T09:30:00.000Z")
 // -----------------------------------------------------------------------------
-export function buildDateTimeUTC(dateStr: string, timeStr: string): Date {
+export function buildDateTimeUTC(dateStr, timeStr) {
   return new Date(`${dateStr}T${timeStr}:00.000Z`);
 }

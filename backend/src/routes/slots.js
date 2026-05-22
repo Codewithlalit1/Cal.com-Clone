@@ -1,9 +1,9 @@
 // =============================================================================
-// src/routes/slots.ts — Slot Generation Route Definition
+// src/routes/slots.js — Slot Generation Route Definition
 //
 // This is a PUBLIC route (no auth middleware applied).
 // It delegates to the slot generation engine in:
-// src/controllers/slots.controller.ts
+// src/controllers/slots.controller.js
 //
 // ROUTE:
 //   GET /api/slots?date=YYYY-MM-DD&slug=event-slug  — getAvailableSlots
@@ -15,7 +15,7 @@
 // =============================================================================
 
 import { Router } from "express";
-import { getAvailableSlots } from "../controllers/slots.controller";
+import { getAvailableSlots } from "../controllers/slots.controller.js";
 
 const router = Router();
 

@@ -1,8 +1,8 @@
 // =============================================================================
-// src/routes/availability.ts — Availability Route Definitions
+// src/routes/availability.js — Availability Route Definitions
 //
 // Thin routing layer only — all logic is in:
-// src/controllers/availability.controller.ts
+// src/controllers/availability.controller.js
 //
 // ROUTES:
 //   GET  /api/availability — fetch weekly schedule  (getAvailability)
@@ -14,7 +14,7 @@ import { Router } from "express";
 import {
   getAvailability,
   saveAvailability,
-} from "../controllers/availability.controller";
+} from "../controllers/availability.controller.js";
 
 const router = Router();
 

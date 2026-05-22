@@ -1,5 +1,5 @@
 // =============================================================================
-// src/controllers/slots.controller.ts — The Slot Generation Engine
+// src/controllers/slots.controller.js — The Slot Generation Engine
 //
 // This is the most algorithmically complex part of the backend.
 // It answers the question: "Given a date and an event type, which time slots
@@ -25,14 +25,13 @@
 //   available slots before they can fill in their name/email and book.
 // =============================================================================
 
-import { Request, Response } from "express";
-import { prisma } from "../lib/prisma";
+import { prisma } from "../lib/prisma.js";
 import {
   generateTimeSlots,
   isSlotConflicting,
   parseDateString,
   buildDateTimeUTC,
-} from "../utils/slotGenerator";
+} from "../utils/slotGenerator.js";
 
 // Regex for strict YYYY-MM-DD date validation
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -45,12 +44,9 @@ const ADMIN_USER_ID = 1;
 // =============================================================================
 // GET /api/slots?date=YYYY-MM-DD&slug=event-slug
 // =============================================================================
-export const getAvailableSlots = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const getAvailableSlots = async (req, res) => {
   try {
-    const { date, slug } = req.query as { date?: string; slug?: string };
+    const { date, slug } = req.query;
 
     // ─── Step 1: Validate Query Parameters ───────────────────────────────────
     if (!date || !slug) {
@@ -135,14 +131,6 @@ export const getAvailableSlots = async (
     // ─── Step 6: Fetch Existing Bookings for This Date + Event Type ──────────
     // We query by date (midnight UTC of the requested day) so we only get
     // bookings on that calendar day — not across day boundaries.
-    //
-    // WHY filter by eventTypeId AND userId?
-    //   eventTypeId:  Each slot size is independent. A 30-min slot booked for
-    //                 "Interview" doesn't block a "15 Min Chat" slot.
-    //   userId:       Future-proofs for multi-user; ensures we don't load
-    //                 another admin's bookings.
-    //   status:       Only CONFIRMED bookings block slots. CANCELLED ones free
-    //                 the time back up.
     const dateStart = new Date(`${date}T00:00:00.000Z`); // midnight UTC
     const dateEnd   = new Date(`${date}T23:59:59.999Z`); // end of day UTC
 

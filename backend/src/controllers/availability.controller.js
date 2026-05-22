@@ -1,5 +1,5 @@
 // =============================================================================
-// src/controllers/availability.controller.ts
+// src/controllers/availability.controller.js
 //
 // Handles reading and saving the admin's weekly availability schedule.
 //
@@ -19,9 +19,8 @@
 //   all days are saved or none are — no partial writes if one fails.
 // =============================================================================
 
-import { Request, Response } from "express";
 import { z } from "zod";
-import { prisma } from "../lib/prisma";
+import { prisma } from "../lib/prisma.js";
 
 // =============================================================================
 // VALIDATION SCHEMAS
@@ -51,10 +50,7 @@ const saveAvailabilitySchema = z.object({
 // Returns the full weekly availability schedule for userId = 1.
 // Returns all 7 days ordered Sunday → Saturday.
 // =============================================================================
-export const getAvailability = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const getAvailability = async (req, res) => {
   try {
     const availability = await prisma.availability.findMany({
       where:   { userId: req.userId },
@@ -83,10 +79,7 @@ export const getAvailability = async (
 // Each day is upserted independently (create if new, update if existing).
 // All upserts run inside a single Prisma transaction.
 // =============================================================================
-export const saveAvailability = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const saveAvailability = async (req, res) => {
   try {
     // Step 1: Validate the body
     const parsed = saveAvailabilitySchema.safeParse(req.body);

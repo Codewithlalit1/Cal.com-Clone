@@ -1,5 +1,5 @@
 // =============================================================================
-// src/controllers/eventTypes.controller.ts
+// src/controllers/eventTypes.controller.js
 //
 // Contains all business logic for the /api/event-types resource.
 // Routes are kept thin (just routing declarations); this file does the work.
@@ -8,9 +8,8 @@
 // The route file imports these and wires them to HTTP methods/paths.
 // =============================================================================
 
-import { Request, Response } from "express";
 import { z } from "zod";
-import { prisma } from "../lib/prisma";
+import { prisma } from "../lib/prisma.js";
 
 // =============================================================================
 // VALIDATION SCHEMAS
@@ -45,7 +44,7 @@ const updateEventTypeSchema = createEventTypeSchema.partial();
 //   2. Replace non-alphanumeric characters with hyphens
 //   3. Strip leading and trailing hyphens
 // =============================================================================
-function slugify(text: string): string {
+function slugify(text) {
   return text
     .toLowerCase()
     .trim()
@@ -61,10 +60,7 @@ function slugify(text: string): string {
 // excludeId: when updating, exclude the current record from the uniqueness check
 //            so a record can be updated without conflicting with itself.
 // =============================================================================
-async function ensureUniqueSlug(
-  baseSlug: string,
-  excludeId?: number
-): Promise<string> {
+async function ensureUniqueSlug(baseSlug, excludeId) {
   let slug = baseSlug;
   let counter = 0;
 
@@ -88,10 +84,7 @@ async function ensureUniqueSlug(
 // Returns all event types owned by the authenticated user (userId = 1).
 // Ordered oldest-first so the dashboard list is stable.
 // =============================================================================
-export const listEventTypes = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const listEventTypes = async (req, res) => {
   try {
     const eventTypes = await prisma.eventType.findMany({
       where:   { userId: req.userId },
@@ -110,10 +103,7 @@ export const listEventTypes = async (
 // Returns a single event type by ID, scoped to the current user.
 // Returns 404 if it doesn't exist or belongs to a different user.
 // =============================================================================
-export const getEventType = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const getEventType = async (req, res) => {
   try {
     const id = parseInt(String(req.params.id));
     if (isNaN(id)) {
@@ -145,10 +135,7 @@ export const getEventType = async (
 // The user does NOT need to pass a slug — it's derived server-side.
 // This matches how Cal.com works: title drives the URL slug.
 // =============================================================================
-export const createEventType = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const createEventType = async (req, res) => {
   try {
     // Validate incoming body
     const parsed = createEventTypeSchema.safeParse(req.body);
@@ -193,10 +180,7 @@ export const createEventType = async (
 //
 // If the title changes, the slug is regenerated automatically.
 // =============================================================================
-export const updateEventType = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const updateEventType = async (req, res) => {
   try {
     const id = parseInt(String(req.params.id));
     if (isNaN(id)) {
@@ -256,10 +240,7 @@ export const updateEventType = async (
 // Permanently deletes an event type (and all its bookings via CASCADE).
 // Returns 404 if the record doesn't exist or doesn't belong to this user.
 // =============================================================================
-export const deleteEventType = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const deleteEventType = async (req, res) => {
   try {
     const id = parseInt(String(req.params.id));
     if (isNaN(id)) {

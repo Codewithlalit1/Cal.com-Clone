@@ -1,9 +1,9 @@
 // =============================================================================
-// src/routes/eventTypes.ts — Event Type Route Definitions
+// src/routes/eventTypes.js — Event Type Route Definitions
 //
 // This file is intentionally thin. Its only job is to declare which HTTP
 // method + path maps to which controller function.
-// All business logic lives in: src/controllers/eventTypes.controller.ts
+// All business logic lives in: src/controllers/eventTypes.controller.js
 //
 // ROUTES:
 //   GET    /api/event-types       — list all (listEventTypes)
@@ -20,7 +20,7 @@ import {
   createEventType,
   updateEventType,
   deleteEventType,
-} from "../controllers/eventTypes.controller";
+} from "../controllers/eventTypes.controller.js";
 
 const router = Router();
 

@@ -1,5 +1,5 @@
 // =============================================================================
-// src/controllers/bookings.controller.ts
+// src/controllers/bookings.controller.js
 //
 // Handles listing and creating bookings (appointments).
 //
@@ -21,10 +21,9 @@
 //   The check runs in the same transaction as the insert for full safety.
 // =============================================================================
 
-import { Request, Response } from "express";
 import { z } from "zod";
-import { prisma } from "../lib/prisma";
-import { buildDateTimeUTC } from "../utils/slotGenerator";
+import { prisma } from "../lib/prisma.js";
+import { buildDateTimeUTC } from "../utils/slotGenerator.js";
 
 // =============================================================================
 // VALIDATION SCHEMA
@@ -49,10 +48,7 @@ const createBookingSchema = z.object({
 //   ?status=CONFIRMED    — filter by status (CONFIRMED | CANCELLED | COMPLETED)
 //   ?eventTypeId=2       — filter to a specific event type
 // =============================================================================
-export const listBookings = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const listBookings = async (req, res) => {
   try {
     const { status, eventTypeId } = req.query;
 
@@ -60,8 +56,8 @@ export const listBookings = async (
       where: {
         userId: req.userId,
         // Only apply filters if the query params were provided
-        ...(status      && { status: status as any }),
-        ...(eventTypeId && { eventTypeId: parseInt(eventTypeId as string) }),
+        ...(status      && { status }),
+        ...(eventTypeId && { eventTypeId: parseInt(eventTypeId) }),
       },
       include: {
         // Include summary fields from the related EventType so the frontend
@@ -84,10 +80,7 @@ export const listBookings = async (
 // GET /api/bookings/:id
 // Returns a single booking by ID, scoped to the current admin.
 // =============================================================================
-export const getBooking = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const getBooking = async (req, res) => {
   try {
     const id = parseInt(String(req.params.id));
     if (isNaN(id)) {
@@ -135,10 +128,7 @@ export const getBooking = async (
 //   4. DOUBLE-BOOKING CHECK: query for any CONFIRMED bookings that overlap
 //   5. If safe, insert the new booking and return it
 // =============================================================================
-export const createBooking = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const createBooking = async (req, res) => {
   try {
     // ── Step 1: Validate the request body ────────────────────────────────────
     const parsed = createBookingSchema.safeParse(req.body);
@@ -254,10 +244,7 @@ export const createBooking = async (
 //   Setting status = CANCELLED preserves the data for audit and analytics
 //   while freeing the time slot for new bookings.
 // =============================================================================
-export const cancelBooking = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const cancelBooking = async (req, res) => {
   try {
     const id = parseInt(String(req.params.id));
     if (isNaN(id)) {

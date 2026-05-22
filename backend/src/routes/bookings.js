@@ -1,8 +1,8 @@
 // =============================================================================
-// src/routes/bookings.ts — Booking Route Definitions
+// src/routes/bookings.js — Booking Route Definitions
 //
 // Thin routing layer only — all logic is in:
-// src/controllers/bookings.controller.ts
+// src/controllers/bookings.controller.js
 //
 // ROUTES:
 //   GET   /api/bookings            — list all bookings      (listBookings)
@@ -17,7 +17,7 @@ import {
   getBooking,
   createBooking,
   cancelBooking,
-} from "../controllers/bookings.controller";
+} from "../controllers/bookings.controller.js";
 
 const router = Router();
 

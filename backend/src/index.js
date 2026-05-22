@@ -1,5 +1,5 @@
 // =============================================================================
-// src/index.ts — Express Application Entry Point
+// src/index.js — Express Application Entry Point
 //
 // MIDDLEWARE ORDER MATTERS in Express. Requests flow top-to-bottom through
 // the middleware chain. The order here is intentional:
@@ -15,17 +15,17 @@
 // =============================================================================
 
 import "dotenv/config"; // Load .env variables — must be first import
-import express, { Request, Response, NextFunction } from "express";
+import express from "express";
 import cors from "cors";
 
 // Middleware
-import { dummyAuthMiddleware } from "./middleware/auth";
+import { dummyAuthMiddleware } from "./middleware/auth.js";
 
 // Route modules
-import eventTypesRouter from "./routes/eventTypes";
-import availabilityRouter from "./routes/availability";
-import bookingsRouter from "./routes/bookings";
-import slotsRouter from "./routes/slots"; // Public — no auth required
+import eventTypesRouter from "./routes/eventTypes.js";
+import availabilityRouter from "./routes/availability.js";
+import bookingsRouter from "./routes/bookings.js";
+import slotsRouter from "./routes/slots.js"; // Public — no auth required
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -62,7 +62,7 @@ app.use(express.urlencoded({ extended: true }));
 // =============================================================================
 
 // ── Health Check ──────────────────────────────────────────────────────────────
-app.get("/health", (_req: Request, res: Response) => {
+app.get("/health", (_req, res) => {
   res.json({
     status:      "ok",
     message:     "Scheduler API is running",
@@ -80,7 +80,7 @@ app.use("/api/slots", slotsRouter);
 // AUTH MIDDLEWARE (applied to all routes below this line)
 // Sets req.userId = 1 on every request.
 // In production, this would verify a JWT and decode the real user ID.
-// See: src/middleware/auth.ts
+// See: src/middleware/auth.js
 // =============================================================================
 app.use(dummyAuthMiddleware);
 
@@ -99,7 +99,7 @@ app.use("/api/bookings",     bookingsRouter);       // Create and manage booking
 
 // ── 404 Handler ───────────────────────────────────────────────────────────────
 // Catches any request that didn't match a route above.
-app.use((_req: Request, res: Response) => {
+app.use((_req, res) => {
   res.status(404).json({
     success: false,
     message: "Endpoint not found. Check the URL and HTTP method.",
@@ -109,7 +109,7 @@ app.use((_req: Request, res: Response) => {
 // ── Global Error Handler ──────────────────────────────────────────────────────
 // Express identifies this as an error handler via the 4-argument signature.
 // Any route can trigger it by calling next(new Error("something went wrong")).
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err, _req, res, _next) => {
   console.error("[Unhandled Error]", err.message);
   res.status(500).json({
     success: false,

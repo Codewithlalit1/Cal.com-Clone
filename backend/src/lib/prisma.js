@@ -1,9 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+// Global singleton pattern — prevents creating multiple Prisma connections
+// during hot-reloads in development (nodemon restarts the module but the
+// global object persists in the Node process).
+let prismaInstance;
 
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
@@ -22,9 +23,9 @@ function createPrismaClient() {
   });
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+export const prisma =
+  globalThis.__prisma ?? (globalThis.__prisma = createPrismaClient());
 
 if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
+  globalThis.__prisma = prisma;
 }
-

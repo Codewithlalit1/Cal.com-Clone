@@ -1,5 +1,5 @@
 // =============================================================================
-// src/middleware/auth.ts — Dummy Authentication Middleware
+// src/middleware/auth.js — Dummy Authentication Middleware
 //
 // WHY THIS EXISTS:
 //   The project spec says "No Login Required." In a production Cal.com clone
@@ -17,19 +17,17 @@
 //    Swapping this out for real auth requires no changes to any route handler."
 // =============================================================================
 
-import { Request, Response, NextFunction } from "express";
-
 /**
  * Middleware that bypasses authentication by hardcoding the admin userId.
  *
  * Attaches `req.userId = 1` to every incoming request so that all route
  * handlers can use `req.userId` without knowing auth is mocked.
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} _res
+ * @param {import('express').NextFunction} next
  */
-export const dummyAuthMiddleware = (
-  req: Request,
-  _res: Response,
-  next: NextFunction
-): void => {
+export const dummyAuthMiddleware = (req, _res, next) => {
   // In a real implementation this would be:
   //   const token = req.headers.authorization?.split(" ")[1];
   //   const decoded = jwt.verify(token, process.env.JWT_SECRET);
