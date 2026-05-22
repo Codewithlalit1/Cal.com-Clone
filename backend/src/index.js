@@ -26,6 +26,7 @@ import eventTypesRouter from "./routes/eventTypes.js";
 import availabilityRouter from "./routes/availability.js";
 import bookingsRouter from "./routes/bookings.js";
 import slotsRouter from "./routes/slots.js"; // Public — no auth required
+import publicRouter from "./routes/public.js"; // Public — event type info for booking page
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -74,7 +75,12 @@ app.get("/health", (_req, res) => {
 // ── Slot Availability Engine ───────────────────────────────────────────────────
 // GET /api/slots?date=YYYY-MM-DD&slug=event-slug
 // Used by the public booking page to fetch open time slots.
-app.use("/api/slots", slotsRouter);
+app.use("/api/slots",  slotsRouter);
+
+// ── Public Event Type Info ────────────────────────────────────────────────────
+// GET /api/public/event-type/:slug
+// Used by the booking page to display event details before a date is chosen.
+app.use("/api/public", publicRouter);
 
 // =============================================================================
 // AUTH MIDDLEWARE (applied to all routes below this line)
@@ -128,6 +134,7 @@ app.listen(PORT, () => {
   console.log(`\n📡  Public endpoints (no auth):`);
   console.log(`    GET  /health`);
   console.log(`    GET  /api/slots?date=YYYY-MM-DD&slug=event-slug`);
+  console.log(`    GET  /api/public/event-type/:slug`);
   console.log(`\n🔒  Protected endpoints (auth middleware applied):`);
   console.log(`    GET  POST PUT DELETE  /api/event-types`);
   console.log(`    GET  POST PUT         /api/availability`);
