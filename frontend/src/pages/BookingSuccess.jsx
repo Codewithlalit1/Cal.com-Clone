@@ -1,148 +1,112 @@
 // src/pages/BookingSuccess.jsx
-//
-// PUBLIC — standalone confirmation page shown after a successful booking.
-// Receives booking details via React Router navigation state.
-// =============================================================================
-
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
-import { Clock, CalendarDays, User, Mail, CheckCircle2 } from "lucide-react";
-
-/** "14:30" → "2:30 PM" */
-function to12h(hhmm) {
-  if (!hhmm) return "";
-  const [h, m] = hhmm.split(":").map(Number);
-  const suffix = h >= 12 ? "PM" : "AM";
-  const hour   = h % 12 || 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
-}
+import { Check, ExternalLink } from "lucide-react";
 
 export default function BookingSuccess() {
-  const { state }  = useLocation();
-  const navigate   = useNavigate();
+  const { state } = useLocation();
+  const navigate = useNavigate();
 
-  // Guard — if someone navigates here directly without state, send them home
-  if (!state) return <Navigate to="/" replace />;
+  if (!state) {
+    return <Navigate to="/" replace />;
+  }
 
   const {
     bookerName,
     bookerEmail,
     eventTitle,
-    eventColor,
     duration,
-    slug,
     displayDate,
     startSlot,
     endSlot,
   } = state;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
-
-        {/* ── Checkmark icon ─────────────────────────────────────────────────── */}
-        <div className="flex justify-center mb-6">
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center animate-pop-in"
-            style={{ backgroundColor: `${eventColor}18` }}  /* 10% opacity tint */
-          >
-            {/* Outer ring uses the event colour */}
-            <div
-              className="w-12 h-12 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${eventColor}30` }}
-            >
-              <CheckCircle2
-                className="h-7 w-7"
-                strokeWidth={1.75}
-                style={{ color: eventColor }}
-              />
-            </div>
-          </div>
+    <div className="min-h-screen bg-[#111111] flex flex-col items-center pt-20 px-4 font-sans text-white pb-10">
+      <div className="w-full max-w-[600px] flex flex-col items-center">
+        
+        {/* Success Icon */}
+        <div className="w-12 h-12 rounded-full border border-emerald-900/50 bg-[#1C1C1C] flex items-center justify-center mb-6">
+          <Check className="h-6 w-6 text-emerald-500" strokeWidth={3} />
         </div>
 
-        {/* ── Heading ──────────────────────────────────────────────────────────── */}
-        <div className="text-center mb-7 animate-fade-up">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">
-            Booking confirmed
-          </p>
-          <h1 className="text-2xl font-bold text-gray-900">
-            This meeting is scheduled.
-          </h1>
-          <p className="text-sm text-gray-500 mt-2">
-            A confirmation has been sent to{" "}
-            <span className="font-medium text-gray-700">{bookerEmail}</span>.
-          </p>
-        </div>
+        <h1 className="text-3xl font-bold tracking-tight mb-2">This meeting is scheduled</h1>
+        <p className="text-[15px] text-neutral-400 mb-10 text-center">
+          We sent an email with a calendar invitation with the details to everyone.
+        </p>
 
-        {/* ── Meeting details card ──────────────────────────────────────────────── */}
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden animate-fade-up-delay">
-          {/* Colour top strip */}
-          <div className="h-1" style={{ backgroundColor: eventColor }} />
-
-          <div className="p-6 flex flex-col gap-4">
-            {/* Event title */}
-            <div className="flex items-start gap-3">
-              <span
-                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white mt-0.5"
-                style={{ backgroundColor: eventColor }}
-              >
-                {eventTitle[0]?.toUpperCase()}
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{eventTitle}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{duration} minutes</p>
+        <div className="w-full bg-[#1C1C1C] border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl">
+          
+          <div className="p-8 flex flex-col gap-6">
+            
+            {/* What */}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-6">
+              <div className="w-16 shrink-0 text-[15px] font-semibold text-white">What</div>
+              <div className="text-[15px] text-neutral-300 font-medium">
+                {duration} min meeting between {bookerName} and Lalit Kumar
               </div>
             </div>
 
-            <div className="border-t border-gray-100" />
-
-            {/* Date */}
-            <div className="flex items-center gap-3 text-sm text-gray-700">
-              <CalendarDays
-                className="h-4 w-4 text-gray-400 shrink-0"
-                strokeWidth={1.75}
-              />
-              {displayDate}
+            {/* When */}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-6">
+              <div className="w-16 shrink-0 text-[15px] font-semibold text-white">When</div>
+              <div className="text-[15px] text-neutral-300 font-medium">
+                {displayDate}<br />
+                {startSlot} – {endSlot} <span className="text-neutral-500 font-normal">(India Standard Time)</span>
+              </div>
             </div>
 
-            {/* Time */}
-            <div className="flex items-center gap-3 text-sm text-gray-700">
-              <Clock
-                className="h-4 w-4 text-gray-400 shrink-0"
-                strokeWidth={1.75}
-              />
-              {to12h(startSlot)} – {to12h(endSlot)}
+            {/* Who */}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-6">
+              <div className="w-16 shrink-0 text-[15px] font-semibold text-white">Who</div>
+              <div className="flex flex-col gap-4">
+                <div>
+                  <div className="text-[15px] text-neutral-300 font-medium flex items-center gap-2">
+                    Lalit Kumar <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-indigo-900/50 text-indigo-400 leading-none">Host</span>
+                  </div>
+                  <div className="text-[15px] text-neutral-500">rachnadevi618@gmail.com</div>
+                </div>
+                <div>
+                  <div className="text-[15px] text-neutral-300 font-medium">
+                    {bookerName}
+                  </div>
+                  <div className="text-[15px] text-neutral-500">{bookerEmail}</div>
+                </div>
+              </div>
             </div>
 
-            <div className="border-t border-gray-100" />
-
-            {/* Booker */}
-            <div className="flex items-center gap-3 text-sm text-gray-700">
-              <User className="h-4 w-4 text-gray-400 shrink-0" strokeWidth={1.75} />
-              {bookerName}
+            {/* Where */}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-6">
+              <div className="w-16 shrink-0 text-[15px] font-semibold text-white">Where</div>
+              <div className="text-[15px] text-neutral-300 font-medium flex items-center gap-2">
+                Cal Video <ExternalLink className="h-4 w-4 text-neutral-400" />
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-sm text-gray-700">
-              <Mail className="h-4 w-4 text-gray-400 shrink-0" strokeWidth={1.75} />
-              {bookerEmail}
+
+          </div>
+
+          <div className="border-t border-neutral-800 p-8 flex flex-col items-center">
+            <div className="flex items-center gap-4">
+              <span className="text-[15px] font-semibold text-white">Add to calendar</span>
+              <div className="flex items-center gap-2">
+                <button className="w-10 h-10 rounded-xl border border-neutral-700 flex items-center justify-center hover:bg-neutral-800 transition-colors">
+                  <span className="text-lg font-bold text-neutral-300">G</span>
+                </button>
+                <button className="w-10 h-10 rounded-xl border border-neutral-700 flex items-center justify-center hover:bg-neutral-800 transition-colors">
+                  <span className="text-xs font-bold text-neutral-300">O365</span>
+                </button>
+                <button className="w-10 h-10 rounded-xl border border-neutral-700 flex items-center justify-center hover:bg-neutral-800 transition-colors">
+                  <span className="text-lg font-bold text-neutral-300">O</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+          
+          <div className="border-t border-neutral-800 bg-[#161616] p-5 text-center">
+            <p className="text-[14px] text-neutral-500">
+              Need to make a change? <button onClick={() => navigate("/")} className="text-neutral-400 underline decoration-neutral-600 hover:text-white transition-colors">Reschedule</button> or <button onClick={() => navigate("/")} className="text-neutral-400 underline decoration-neutral-600 hover:text-white transition-colors">Cancel</button>
+            </p>
+          </div>
 
-        {/* ── CTAs ─────────────────────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row gap-3 mt-6 animate-fade-up-delay-2">
-          <button
-            id="book-another-btn"
-            onClick={() => navigate(`/book/${slug}`)}
-            className="flex-1 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:border-gray-400 rounded-md transition-colors duration-150"
-          >
-            Book another time
-          </button>
-          <button
-            id="back-to-events-btn"
-            onClick={() => navigate("/event-types")}
-            className="flex-1 py-2.5 text-sm font-semibold text-white bg-gray-900 hover:bg-gray-700 rounded-md transition-colors duration-150"
-          >
-            Back to dashboard →
-          </button>
         </div>
       </div>
     </div>
