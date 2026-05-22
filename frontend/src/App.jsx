@@ -4,7 +4,8 @@ import AdminLayout   from "./components/AdminLayout";
 import EventTypes    from "./pages/EventTypes";
 import Availability  from "./pages/Availability";
 import Bookings      from "./pages/Bookings";
-import BookingPage   from "./pages/BookingPage";
+import BookingPage    from "./pages/BookingPage";
+import BookingSuccess from "./pages/BookingSuccess";
 
 export default function App() {
   return (
@@ -14,10 +15,8 @@ export default function App() {
         <Route path="/" element={<Navigate to="/event-types" replace />} />
 
         {/* ── PUBLIC booking flow — no AdminLayout, no auth ── */}
-        {/* Step 4.1: Date + slot picker */}
-        <Route path="/book/:slug" element={<BookingPage />} />
-        {/* Step 4.2: Confirmation form (added next) */}
-        {/* <Route path="/book/:slug/confirm" element={<BookingConfirm />} /> */}
+        <Route path="/book/:slug"     element={<BookingPage />} />
+        <Route path="/booking-success" element={<BookingSuccess />} />
 
         {/* ── Admin layout wraps all dashboard pages ── */}
         <Route element={<AdminLayout />}>
