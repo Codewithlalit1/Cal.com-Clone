@@ -16,8 +16,9 @@ generator client {
 }
 
 datasource db {
-  // Connection URL is configured in prisma.config.ts (Prisma v7 requirement).
-  // The DATABASE_URL env variable is read from the .env file at migration time.
+  // In Prisma v7, connection URLs are configured in prisma.config.ts (for the
+  // Prisma CLI) and via the driver adapter passed to PrismaClient (for runtime).
+  // Do NOT add a `url` field here — it is rejected by Prisma v7 schema validation.
   provider = "postgresql"
 }
 

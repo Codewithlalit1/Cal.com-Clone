@@ -1,28 +1,18 @@
 // =============================================================================
-// prisma/seed.js — Database Seeder (Plain JavaScript / CommonJS)
+// prisma/seed.js — Database Seeder
 //
-// This is the plain JS equivalent of seed.ts.
-// Run with:  node prisma/seed.js
-//
-// Uses CommonJS require() instead of ES module import so it works with
-// Node.js directly, without needing a TypeScript compilation step.
+// Refactored as an ES Module (import instead of require) to match the rest of
+// the backend, which uses "type": "module".
 // =============================================================================
 
-require("dotenv").config();
-const { PrismaClient } = require("@prisma/client");
-const { PrismaPg } = require("@prisma/adapter-pg");
-
-// Prisma v7: connection URL is passed through the adapter, not schema.prisma
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
+import "dotenv/config";
+import { prisma } from "../src/lib/prisma.js";
 
 async function main() {
   console.log("🌱  Starting database seed...\n");
 
   // ---------------------------------------------------------------------------
   // 1. SEED: Dummy Admin User (id = 1)
-  //    This user matches the hardcoded userId = 1 in our auth middleware.
-  //    upsert = INSERT if not exists, UPDATE if exists (idempotent).
   // ---------------------------------------------------------------------------
   const adminUser = await prisma.user.upsert({
     where: { email: "admin@scheduler.local" },
@@ -38,15 +28,12 @@ async function main() {
 
   // ---------------------------------------------------------------------------
   // 2. SEED: Event Types
-  //    The admin's schedulable meeting formats.
-  //    Slug is used as the URL path: /book/<slug>
   // ---------------------------------------------------------------------------
   const eventTypes = [
     {
       title: "15 Min Chat",
       slug: "15-min-chat",
-      description:
-        "A quick introductory call to get to know each other.",
+      description: "A quick introductory call to get to know each other.",
       duration: 15,
       color: "#6366f1",
       userId: 1,
@@ -54,8 +41,7 @@ async function main() {
     {
       title: "30 Min Interview",
       slug: "30-min-interview",
-      description:
-        "A focused technical or behavioural interview session.",
+      description: "A focused technical or behavioural interview session.",
       duration: 30,
       color: "#8b5cf6",
       userId: 1,
@@ -63,8 +49,7 @@ async function main() {
     {
       title: "60 Min Deep Dive",
       slug: "60-min-deep-dive",
-      description:
-        "An in-depth consultation or pair programming session.",
+      description: "An in-depth consultation or pair programming session.",
       duration: 60,
       color: "#06b6d4",
       userId: 1,
@@ -78,15 +63,11 @@ async function main() {
       update: {},
       create: et,
     });
-    console.log(
-      `   ✅  "${created.title}"  →  /book/${created.slug}  (${created.duration} min)`
-    );
+    console.log(`   ✅  "${created.title}"  →  /book/${created.slug}  (${created.duration} min)`);
   }
 
   // ---------------------------------------------------------------------------
   // 3. SEED: Weekly Availability
-  //    dayOfWeek: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-  //    startTime / endTime stored as "HH:MM" strings (24-hour, timezone-agnostic)
   // ---------------------------------------------------------------------------
   const weekSchedule = [
     { dayOfWeek: 0, isEnabled: false }, // Sunday  — off
@@ -124,9 +105,8 @@ async function main() {
 }
 
 main()
-  .then(() => prisma.$disconnect())
-  .catch(async (err) => {
+  .then(() => process.exit(0))
+  .catch((err) => {
     console.error("\n❌  Seed failed:", err);
-    await prisma.$disconnect();
     process.exit(1);
   });
