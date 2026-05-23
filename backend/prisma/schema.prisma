@@ -90,8 +90,8 @@ model Availability {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // An admin can only have one availability rule per day
-  @@unique([userId, dayOfWeek])
+  // Note: We removed the @@unique([userId, dayOfWeek]) constraint so 
+  // users can define multiple availability intervals per day.
   @@map("availability")
 }
 

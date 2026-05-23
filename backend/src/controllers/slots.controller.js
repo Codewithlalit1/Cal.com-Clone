@@ -95,15 +95,18 @@ export const getAvailableSlots = async (req, res) => {
     const dayOfWeek = dateObj.getDay();
 
     // ─── Step 4: Fetch Admin's Availability for This Day of the Week ─────────
-    const availability = await prisma.availability.findUnique({
+    const availabilities = await prisma.availability.findMany({
       where: {
-        userId_dayOfWeek: { userId: ADMIN_USER_ID, dayOfWeek },
+        userId: ADMIN_USER_ID,
+        dayOfWeek,
+        isEnabled: true,
       },
+      orderBy: { startTime: "asc" }
     });
 
     // If no availability record exists, or the day is explicitly disabled,
     // return an empty array — the admin has no available slots on this day.
-    if (!availability || !availability.isEnabled) {
+    if (availabilities.length === 0) {
       res.json({
         success: true,
         data: {
@@ -111,9 +114,7 @@ export const getAvailableSlots = async (req, res) => {
           slug,
           eventType:      { title: eventType.title, duration: eventType.duration },
           availableSlots: [],
-          message: availability
-            ? "The admin is not available on this day."
-            : "No availability configured for this day.",
+          message: "No availability configured for this day.",
         },
       });
       return;
@@ -122,11 +123,15 @@ export const getAvailableSlots = async (req, res) => {
     // ─── Step 5: Generate All Theoretical Time Slots ─────────────────────────
     // Divide the availability window into equal chunks of eventType.duration.
     // e.g. 09:00–17:00 with duration=30 → ["09:00","09:30",...,"16:30"]
-    const allSlots = generateTimeSlots(
-      availability.startTime,  // "09:00"
-      availability.endTime,    // "17:00"
-      eventType.duration       // e.g. 30
-    );
+    const allSlots = [];
+    for (const avail of availabilities) {
+      const intervalSlots = generateTimeSlots(
+        avail.startTime,  // e.g. "09:00"
+        avail.endTime,    // e.g. "12:00"
+        eventType.duration // e.g. 30
+      );
+      allSlots.push(...intervalSlots);
+    }
 
     // ─── Step 6: Fetch Existing Bookings for This Date + Event Type ──────────
     // We query by date (midnight UTC of the requested day) so we only get
@@ -178,10 +183,10 @@ export const getAvailableSlots = async (req, res) => {
           duration: eventType.duration,
           color:    eventType.color,
         },
-        availability: {
-          startTime: availability.startTime,
-          endTime:   availability.endTime,
-        },
+        availability: availabilities.map(a => ({
+          startTime: a.startTime,
+          endTime:   a.endTime,
+        })),
         totalSlots:    allSlots.length,        // how many existed before filtering
         bookedCount:   existingBookings.length, // how many are already taken
         availableSlots,                         // the final bookable list

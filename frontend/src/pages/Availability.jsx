@@ -1,27 +1,30 @@
-// src/pages/Availability.jsx
 import { useState, useEffect, useCallback } from "react";
-import { Save, Loader2, AlertCircle, CheckCircle2, Globe } from "lucide-react";
+import { Save, Loader2, AlertCircle, CheckCircle2, Globe, Plus, Trash2 } from "lucide-react";
 import api from "../lib/api";
 
-// ─── Days displayed in the UI ─────────────────────────────────────────────────
-// dayOfWeek matches the DB convention: 0=Sun … 6=Sat
 const DAYS = [
+  { label: "Sunday",    short: "Sun", dayOfWeek: 0 },
   { label: "Monday",    short: "Mon", dayOfWeek: 1 },
   { label: "Tuesday",   short: "Tue", dayOfWeek: 2 },
   { label: "Wednesday", short: "Wed", dayOfWeek: 3 },
   { label: "Thursday",  short: "Thu", dayOfWeek: 4 },
   { label: "Friday",    short: "Fri", dayOfWeek: 5 },
   { label: "Saturday",  short: "Sat", dayOfWeek: 6 },
-  { label: "Sunday",    short: "Sun", dayOfWeek: 0 },
 ];
 
+function generateId() {
+  return Math.random().toString(36).substr(2, 9);
+}
+
 function buildDefaultSchedule() {
-  return DAYS.map(({ dayOfWeek }) => ({
-    dayOfWeek,
-    startTime: "09:00",
-    endTime: "17:00",
-    isEnabled: dayOfWeek >= 1 && dayOfWeek <= 5,
-  }));
+  return DAYS.map(({ dayOfWeek }) => {
+    const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+    return {
+      dayOfWeek,
+      isEnabled: isWeekday,
+      intervals: isWeekday ? [{ startTime: "09:00", endTime: "17:00", id: generateId() }] : []
+    };
+  });
 }
 
 function Toggle({ id, checked, onChange }) {
@@ -61,14 +64,28 @@ export default function Availability() {
     try {
       const res = await api.get("/api/availability");
       const dbRows = res.data.data;
-      setSchedule((prev) =>
-        prev.map((day) => {
-          const dbRow = dbRows.find((r) => r.dayOfWeek === day.dayOfWeek);
-          return dbRow
-            ? { dayOfWeek: day.dayOfWeek, startTime: dbRow.startTime, endTime: dbRow.endTime, isEnabled: dbRow.isEnabled }
-            : day;
-        })
-      );
+      
+      if (dbRows.length === 0) {
+        setSchedule(buildDefaultSchedule());
+        return;
+      }
+
+      setSchedule(DAYS.map((day) => {
+        const rowsForDay = dbRows.filter((r) => r.dayOfWeek === day.dayOfWeek);
+        if (rowsForDay.length > 0 && rowsForDay[0].isEnabled) {
+          return {
+            dayOfWeek: day.dayOfWeek,
+            isEnabled: true,
+            intervals: rowsForDay.map(r => ({ startTime: r.startTime, endTime: r.endTime, id: generateId() }))
+          };
+        } else {
+          return {
+            dayOfWeek: day.dayOfWeek,
+            isEnabled: false,
+            intervals: []
+          };
+        }
+      }));
     } catch (err) {
       setFetchError(err.response?.data?.message || "Could not load availability.");
     } finally {
@@ -85,11 +102,50 @@ export default function Availability() {
   }, [notification]);
 
   function handleToggle(dayOfWeek) {
-    setSchedule((prev) => prev.map((d) => d.dayOfWeek === dayOfWeek ? { ...d, isEnabled: !d.isEnabled } : d));
+    setSchedule((prev) => prev.map((d) => {
+      if (d.dayOfWeek !== dayOfWeek) return d;
+      const isEnabled = !d.isEnabled;
+      return {
+        ...d,
+        isEnabled,
+        // If toggling on and there are no intervals, add a default one
+        intervals: isEnabled && d.intervals.length === 0 
+          ? [{ startTime: "09:00", endTime: "17:00", id: generateId() }] 
+          : d.intervals
+      };
+    }));
   }
 
-  function handleTimeChange(dayOfWeek, field, value) {
-    setSchedule((prev) => prev.map((d) => d.dayOfWeek === dayOfWeek ? { ...d, [field]: value } : d));
+  function handleIntervalChange(dayOfWeek, intervalId, field, value) {
+    setSchedule((prev) => prev.map((d) => {
+      if (d.dayOfWeek !== dayOfWeek) return d;
+      return {
+        ...d,
+        intervals: d.intervals.map(inv => inv.id === intervalId ? { ...inv, [field]: value } : inv)
+      };
+    }));
+  }
+
+  function addInterval(dayOfWeek) {
+    setSchedule((prev) => prev.map((d) => {
+      if (d.dayOfWeek !== dayOfWeek) return d;
+      return {
+        ...d,
+        intervals: [...d.intervals, { startTime: "09:00", endTime: "17:00", id: generateId() }]
+      };
+    }));
+  }
+
+  function removeInterval(dayOfWeek, intervalId) {
+    setSchedule((prev) => prev.map((d) => {
+      if (d.dayOfWeek !== dayOfWeek) return d;
+      const newIntervals = d.intervals.filter(inv => inv.id !== intervalId);
+      return {
+        ...d,
+        isEnabled: newIntervals.length > 0, // Auto-disable if removing last interval
+        intervals: newIntervals
+      };
+    }));
   }
 
   function handleTimezoneChange(e) {
@@ -101,9 +157,15 @@ export default function Availability() {
   function validate() {
     for (const day of schedule) {
       if (!day.isEnabled) continue;
-      if (day.startTime >= day.endTime) {
-        const meta = DAYS.find((d) => d.dayOfWeek === day.dayOfWeek);
-        return `${meta.label}: start time must be before end time.`;
+      if (day.intervals.length === 0) {
+         const meta = DAYS.find((d) => d.dayOfWeek === day.dayOfWeek);
+         return `${meta.label}: You must add at least one time slot if the day is enabled.`;
+      }
+      for (const interval of day.intervals) {
+        if (interval.startTime >= interval.endTime) {
+          const meta = DAYS.find((d) => d.dayOfWeek === day.dayOfWeek);
+          return `${meta.label}: Start time must be before end time.`;
+        }
       }
     }
     return null;
@@ -118,8 +180,31 @@ export default function Availability() {
     }
     setSaving(true);
     setNotification(null);
+
+    // Flatten for backend
+    const flatAvailability = [];
+    for (const day of schedule) {
+      if (day.isEnabled && day.intervals.length > 0) {
+        for (const inv of day.intervals) {
+          flatAvailability.push({
+            dayOfWeek: day.dayOfWeek,
+            startTime: inv.startTime,
+            endTime: inv.endTime,
+            isEnabled: true
+          });
+        }
+      } else {
+        flatAvailability.push({
+          dayOfWeek: day.dayOfWeek,
+          startTime: "00:00",
+          endTime: "00:00",
+          isEnabled: false
+        });
+      }
+    }
+
     try {
-      await api.post("/api/availability", { availability: schedule });
+      await api.post("/api/availability", { availability: flatAvailability });
       setNotification({ type: "success", msg: "Availability saved successfully." });
     } catch (err) {
       setNotification({ type: "error", msg: err.response?.data?.message || "Failed to save." });
@@ -191,9 +276,9 @@ export default function Availability() {
           {DAYS.map(({ label, short, dayOfWeek }) => {
             const day = schedule.find((d) => d.dayOfWeek === dayOfWeek);
             return (
-              <div key={dayOfWeek} className={`flex flex-col sm:flex-row sm:items-center gap-4 px-6 py-5 border-b border-neutral-800 last:border-b-0 transition-colors duration-150 ${day.isEnabled ? "bg-[#1C1C1C]" : "bg-neutral-900/30"}`}>
+              <div key={dayOfWeek} className={`flex flex-col sm:flex-row sm:items-start gap-4 px-6 py-5 border-b border-neutral-800 last:border-b-0 transition-colors duration-150 ${day.isEnabled ? "bg-[#1C1C1C]" : "bg-neutral-900/30"}`}>
                 
-                <div className="flex items-center gap-4 w-40">
+                <div className="flex items-center gap-4 w-40 mt-2">
                   <Toggle id={`toggle-${dayOfWeek}`} checked={day.isEnabled} onChange={() => handleToggle(dayOfWeek)} />
                   <span className={`text-[15px] font-semibold select-none ${day.isEnabled ? "text-white" : "text-neutral-500"}`}>
                     <span className="hidden sm:inline">{label}</span>
@@ -201,15 +286,50 @@ export default function Availability() {
                   </span>
                 </div>
 
-                {day.isEnabled ? (
-                  <div className="flex items-center gap-3">
-                    <input type="time" value={day.startTime} onChange={(e) => handleTimeChange(dayOfWeek, "startTime", e.target.value)} required={day.isEnabled} className="bg-[#111111] text-white text-[15px] px-3 py-2 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-500" />
-                    <span className="text-neutral-500 font-medium">-</span>
-                    <input type="time" value={day.endTime} onChange={(e) => handleTimeChange(dayOfWeek, "endTime", e.target.value)} required={day.isEnabled} className="bg-[#111111] text-white text-[15px] px-3 py-2 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-500" />
-                  </div>
-                ) : (
-                  <span className="text-[15px] text-neutral-600 font-medium select-none">Unavailable</span>
-                )}
+                <div className="flex-1 flex flex-col gap-3">
+                  {day.isEnabled ? (
+                    day.intervals.map((inv, index) => (
+                      <div key={inv.id} className="flex items-center gap-3">
+                        <input 
+                          type="time" 
+                          value={inv.startTime} 
+                          onChange={(e) => handleIntervalChange(dayOfWeek, inv.id, "startTime", e.target.value)} 
+                          required 
+                          className="bg-[#111111] text-white text-[15px] px-3 py-2 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-500" 
+                        />
+                        <span className="text-neutral-500 font-medium">-</span>
+                        <input 
+                          type="time" 
+                          value={inv.endTime} 
+                          onChange={(e) => handleIntervalChange(dayOfWeek, inv.id, "endTime", e.target.value)} 
+                          required 
+                          className="bg-[#111111] text-white text-[15px] px-3 py-2 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-500" 
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => removeInterval(dayOfWeek, inv.id)} 
+                          className="p-2 ml-2 text-neutral-500 hover:text-white transition-colors"
+                          title="Remove time slot"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        {index === day.intervals.length - 1 && (
+                          <button 
+                            type="button" 
+                            onClick={() => addInterval(dayOfWeek)} 
+                            className="p-2 text-neutral-500 hover:text-white transition-colors"
+                            title="Add time slot"
+                          >
+                            <Plus className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="mt-2 text-[15px] text-neutral-600 font-medium select-none">Unavailable</div>
+                  )}
+                </div>
+
               </div>
             );
           })}
