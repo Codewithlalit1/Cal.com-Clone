@@ -55,14 +55,19 @@ app.use(
       // Allow requests with no Origin header (curl, Postman, mobile apps, SSR)
       if (!origin) return callback(null, true);
 
-      // In production: check if the origin is in the allowed list
+      // In production: check if the origin is in the allowed list or is a vercel preview
       if (process.env.NODE_ENV === "production") {
+        if (origin && origin.endsWith(".vercel.app")) {
+          return callback(null, true);
+        }
+        
         if (ALLOWED_ORIGIN_PROD) {
           const allowedOrigins = ALLOWED_ORIGIN_PROD.split(",").map(u => u.trim());
           if (allowedOrigins.includes(origin)) {
             return callback(null, true);
           }
         }
+        
         return callback(new Error(`CORS: origin "${origin}" is not allowed`));
       }
 
