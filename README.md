@@ -17,6 +17,7 @@
 
 ### 📅 Advanced Scheduling Engine
 - **Dynamic Slot Generation:** Calculates available 30-minute slots based on the Admin's configured weekly availability.
+- **Multiple Daily Slots (Split Shifts):** Admins can configure multiple distinct time blocks on the exact same day (e.g., 09:00 - 11:00 and 13:00 - 17:00). The engine seamlessly stitches them together, leaving gaps for lunch breaks entirely unbookable!
 - **Double-Booking Prevention:** Bulletproof SQL-level transaction checks to prevent overlapping meetings, guarding against TOCTOU race conditions.
 - **Buffer Times (Upcoming):** Automatic pre/post padding between meetings to avoid back-to-back burnout.
 
@@ -151,7 +152,7 @@ The codebase applies a strict **separation of concerns** at every layer.
 ### Database — Prisma Schema
 - `User`: The admin managing the schedule.
 - `EventType`: Configurable meeting templates (e.g., "15 Min Chat", duration, URL slugs).
-- `Availability`: The admin's configured working hours per day of the week.
+- `Availability`: The admin's configured working hours. Supports multiple independent time intervals per day.
 - `Booking`: Confirmed appointments linked to an Event Type and Guest.
 
 ---
