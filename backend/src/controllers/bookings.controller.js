@@ -24,6 +24,7 @@
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { buildDateTimeUTC } from "../utils/slotGenerator.js";
+import { emailService } from "../services/email.service.js";
 
 // =============================================================================
 // VALIDATION SCHEMA
@@ -185,7 +186,6 @@ export const createBooking = async (req, res) => {
     //   We only check CONFIRMED bookings — CANCELLED ones free the slot.
     const conflict = await prisma.booking.findFirst({
       where: {
-        eventTypeId,
         userId: req.userId,
         status: "CONFIRMED",
         OR: [
@@ -224,8 +224,12 @@ export const createBooking = async (req, res) => {
       },
       include: {
         eventType: { select: { title: true, duration: true, color: true } },
+        user: true,
       },
     });
+
+    // Send async booking email
+    emailService.sendBookingEmail(booking);
 
     // 201 Created — booking was successfully persisted
     res.status(201).json({ success: true, data: booking });
@@ -269,11 +273,94 @@ export const cancelBooking = async (req, res) => {
     const updated = await prisma.booking.update({
       where: { id },
       data:  { status: "CANCELLED" },
+      include: { eventType: true, user: true }
     });
+
+    // Send async cancellation email
+    emailService.sendCancellationEmail(updated);
 
     res.json({ success: true, data: updated });
   } catch (error) {
     console.error("[Bookings] cancelBooking error:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// =============================================================================
+// PATCH /api/bookings/:id/reschedule
+// Reschedules a booking to a new date and time.
+// =============================================================================
+export const rescheduleBooking = async (req, res) => {
+  try {
+    const id = parseInt(String(req.params.id));
+    if (isNaN(id)) return res.status(400).json({ success: false, message: "Invalid ID" });
+
+    const { date, startTime, bookerName, bookerEmail, timezone } = req.body;
+    let { notes } = req.body;
+    
+    if (!date || !startTime) {
+      return res.status(400).json({ success: false, message: "date and startTime are required to reschedule" });
+    }
+
+    if (timezone) {
+      if (notes) notes = notes.replace(/^\[TZ: .+?\](?:\n\n)?/, "");
+      notes = `[TZ: ${timezone}]` + (notes ? `\n\n${notes}` : "");
+    }
+
+    const existing = await prisma.booking.findFirst({
+      where: { id, userId: req.userId },
+      include: { eventType: true }
+    });
+
+    if (!existing || existing.status === "CANCELLED") {
+      return res.status(404).json({ success: false, message: "Booking not found or is cancelled" });
+    }
+
+    const eventType = existing.eventType;
+    const startDateTime = buildDateTimeUTC(date, startTime);
+    const endDateTime = new Date(startDateTime.getTime() + eventType.duration * 60 * 1000);
+    const dateOnly = new Date(`${date}T00:00:00.000Z`);
+
+    // Double-Booking Check (Ignore self)
+    const conflict = await prisma.booking.findFirst({
+      where: {
+        userId: req.userId,
+        status: "CONFIRMED",
+        id: { not: existing.id },
+        OR: [
+          { startTime: { gte: startDateTime, lt: endDateTime } },
+          { endTime: { gt: startDateTime, lte: endDateTime } },
+          { startTime: { lte: startDateTime }, endTime: { gte: endDateTime } },
+        ],
+      },
+    });
+
+    if (conflict) {
+      return res.status(409).json({ success: false, message: "This time slot is already booked." });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id },
+      data: {
+        date: dateOnly,
+        startTime: startDateTime,
+        endTime: endDateTime,
+        ...(bookerName && { bookerName }),
+        ...(bookerEmail && { bookerEmail }),
+        ...(notes !== undefined && { notes }),
+      },
+      include: {
+        eventType: { select: { title: true, duration: true, color: true, slug: true } },
+        user: true
+      }
+    });
+
+    // Send async reschedule email
+    emailService.sendRescheduleEmail(updated);
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    console.error("[Bookings] rescheduleBooking error:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

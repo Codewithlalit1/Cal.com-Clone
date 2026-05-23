@@ -17,6 +17,7 @@ import {
   getBooking,
   createBooking,
   cancelBooking,
+  rescheduleBooking,
 } from "../controllers/bookings.controller.js";
 
 const router = Router();
@@ -25,5 +26,6 @@ router.get("/",              listBookings);
 router.get("/:id",           getBooking);
 router.post("/",             createBooking);
 router.patch("/:id/cancel",  cancelBooking);
+router.patch("/:id/reschedule", rescheduleBooking);
 
 export default router;

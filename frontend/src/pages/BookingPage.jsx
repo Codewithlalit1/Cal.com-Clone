@@ -1,6 +1,6 @@
 // src/pages/BookingPage.jsx
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Clock,
   ChevronLeft,
@@ -125,9 +125,9 @@ function CalendarGrid({ year, month, selectedDate, today, onSelect, onPrev, onNe
 }
 
 // ── SlotsPanel ──
-function SlotsPanel({ date, slots, loading, onSlotSelect }) {
-  const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
-  const dayNum = date.getDate();
+function SlotsPanel({ date, slots, loading, onSlotSelect, selectedTz }) {
+  const dayName = date.toLocaleDateString("en-US", { weekday: "short", timeZone: selectedTz });
+  const dayNum = date.toLocaleDateString("en-US", { day: "numeric", timeZone: selectedTz });
 
   return (
     <div className="flex flex-col h-full w-[240px]">
@@ -151,14 +151,14 @@ function SlotsPanel({ date, slots, loading, onSlotSelect }) {
 
       {!loading && slots.length > 0 && (
         <ul className="flex flex-col gap-2.5 overflow-y-auto pr-2 custom-scrollbar">
-          {slots.map((slot) => (
-            <li key={slot}>
+          {slots.map((slot, idx) => (
+            <li key={idx}>
               <button
                 onClick={() => onSlotSelect(slot)}
                 className="w-full relative text-[15px] font-medium py-2.5 px-4 rounded-lg border border-neutral-800 text-white hover:border-neutral-600 hover:bg-neutral-800/50 transition-all duration-150 text-center"
               >
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-                {to12h(slot)}
+                {slot.toLocaleTimeString("en-US", { timeZone: selectedTz, hour: "numeric", minute: "2-digit", hour12: true })}
               </button>
             </li>
           ))}
@@ -169,12 +169,16 @@ function SlotsPanel({ date, slots, loading, onSlotSelect }) {
 }
 
 // ── BookingForm ──
-function BookingForm({ eventType, selectedDate, selectedSlot, onBack, onSuccess }) {
-  const [form, setForm] = useState({ name: "", email: "", notes: "" });
+function BookingForm({ eventType, selectedDate, selectedSlot, rescheduleData, selectedTz, onBack, onSuccess }) {
+  const [form, setForm] = useState({ 
+    name: rescheduleData?.bookerName || "", 
+    email: rescheduleData?.bookerEmail || "", 
+    notes: (rescheduleData?.notes || "").replace(/^\[TZ: .+?\](?:\n\n)?/, "")
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const endSlot = addMinutes(selectedSlot, eventType.duration);
+  const endSlot = new Date(selectedSlot.getTime() + eventType.duration * 60000);
 
   function handleChange(e) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -185,23 +189,45 @@ function BookingForm({ eventType, selectedDate, selectedSlot, onBack, onSuccess 
     setError("");
     setSubmitting(true);
     try {
-      const res = await api.post("/api/bookings", {
-        eventTypeId: eventType.id,
-        date: toISO(selectedDate),
-        startTime: selectedSlot,
-        bookerName: form.name.trim(),
-        bookerEmail: form.email.trim(),
-        notes: form.notes.trim() || undefined,
-      });
+      // Convert the absolute selectedSlot Date back to Asia/Kolkata "YYYY-MM-DD" and "HH:MM" for the backend
+      const options = { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false };
+      const parts = new Intl.DateTimeFormat("en-US", options).formatToParts(selectedSlot);
+      const p = {};
+      parts.forEach(({ type, value }) => (p[type] = value));
+      const backendDate = `${p.year}-${p.month}-${p.day}`;
+      const backendTime = `${p.hour === "24" ? "00" : p.hour}:${p.minute}`;
+
+      let res;
+      if (rescheduleData) {
+        res = await api.patch(`/api/bookings/${rescheduleData.id}/reschedule`, {
+          date: backendDate,
+          startTime: backendTime,
+          bookerName: form.name.trim(),
+          bookerEmail: form.email.trim(),
+          notes: form.notes.trim() || undefined,
+          timezone: selectedTz
+        });
+      } else {
+        res = await api.post("/api/bookings", {
+          eventTypeId: eventType.id,
+          date: backendDate,
+          startTime: backendTime,
+          bookerName: form.name.trim(),
+          bookerEmail: form.email.trim(),
+          notes: form.notes.trim() || undefined,
+          timezone: selectedTz
+        });
+      }
+      
       onSuccess({
         booking: res.data.data,
         bookerName: form.name.trim(),
         bookerEmail: form.email.trim(),
         eventTitle: eventType.title,
         duration: eventType.duration,
-        displayDate: toDisplayDate(selectedDate),
-        startSlot: selectedSlot,
-        endSlot,
+        displayDate: selectedSlot.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: selectedTz }),
+        startSlot: selectedSlot.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: selectedTz }),
+        endSlot: endSlot.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: selectedTz }),
       });
     } catch (err) {
       setError(err.response?.data?.message || "Something went wrong.");
@@ -303,6 +329,18 @@ export default function BookingPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
 
+  const [searchParams] = useSearchParams();
+  const rescheduleId = searchParams.get("rescheduleId");
+  const [rescheduleData, setRescheduleData] = useState(null);
+
+  useEffect(() => {
+    if (rescheduleId) {
+      api.get(`/api/bookings/${rescheduleId}`).then(res => {
+         setRescheduleData(res.data.data);
+      }).catch(err => console.error("Failed to load reschedule data", err));
+    }
+  }, [rescheduleId]);
+
   const [eventType, setEventType] = useState(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [pageError, setPageError] = useState("");
@@ -317,6 +355,7 @@ export default function BookingPage() {
   const [selectedSlot, setSelectedSlot] = useState(null);
 
   const [step, setStep] = useState("slots");
+  const [selectedTz, setSelectedTz] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
 
   useEffect(() => {
     (async () => {
@@ -337,16 +376,47 @@ export default function BookingPage() {
       setSlots([]);
       setSelectedSlot(null);
       try {
-        const res = await api.get("/api/slots", { params: { date: toISO(date), slug } });
-        setSlots(res.data.data.availableSlots ?? []);
-      } catch {
+        const dMinus1 = new Date(date); dMinus1.setDate(dMinus1.getDate() - 1);
+        const dPlus1 = new Date(date); dPlus1.setDate(dPlus1.getDate() + 1);
+
+        const [res1, res2, res3] = await Promise.all([
+          api.get("/api/slots", { params: { date: toISO(dMinus1), slug, ...(rescheduleId && { excludeBookingId: rescheduleId }) } }).catch(() => ({ data: { data: { availableSlots: [] } } })),
+          api.get("/api/slots", { params: { date: toISO(date), slug, ...(rescheduleId && { excludeBookingId: rescheduleId }) } }).catch(() => ({ data: { data: { availableSlots: [] } } })),
+          api.get("/api/slots", { params: { date: toISO(dPlus1), slug, ...(rescheduleId && { excludeBookingId: rescheduleId }) } }).catch(() => ({ data: { data: { availableSlots: [] } } })),
+        ]);
+
+        const allSlots = [];
+        const pushSlots = (res, d) => {
+           res.data?.data?.availableSlots?.forEach(s => {
+               const isoString = `${toISO(d)}T${s}:00+05:30`;
+               allSlots.push(new Date(isoString));
+           });
+        };
+        pushSlots(res1, dMinus1);
+        pushSlots(res2, date);
+        pushSlots(res3, dPlus1);
+
+        const targetDateString = date.toLocaleDateString("en-US", { timeZone: selectedTz });
+        
+        const finalSlots = allSlots.filter(dateObj => {
+           return dateObj.toLocaleDateString("en-US", { timeZone: selectedTz }) === targetDateString;
+        });
+
+        setSlots(finalSlots);
+      } catch (err) {
         setSlots([]);
       } finally {
         setSlotsLoading(false);
       }
     },
-    [slug]
+    [slug, rescheduleId, selectedTz]
   );
+
+  useEffect(() => {
+    if (selectedDate) {
+      fetchSlots(selectedDate);
+    }
+  }, [selectedTz]);
 
   function handleDateSelect(date) {
     setSelectedDate(date);
@@ -391,8 +461,15 @@ export default function BookingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#111111] flex flex-col items-center pt-20 px-4 font-sans text-white pb-10">
-      
+    <div className="min-h-screen bg-[#111111] flex flex-col items-center pt-20 px-4 font-sans text-white pb-10 relative">
+      <button 
+        onClick={() => navigate("/")}
+        className="absolute top-6 left-6 sm:top-8 sm:left-8 flex items-center gap-2 text-[14px] font-semibold text-neutral-400 hover:text-white transition-all hover:bg-neutral-800 px-4 py-2 rounded-full border border-neutral-800 bg-[#1C1C1C]"
+      >
+        <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
+        Main Page
+      </button>
+
       <div className="bg-[#1C1C1C] border border-neutral-800 rounded-2xl flex flex-col md:flex-row overflow-hidden shadow-2xl transition-all duration-300 ease-in-out">
         
         {/* Left Panel (Event Info) */}
@@ -408,9 +485,14 @@ export default function BookingPage() {
               <div className="flex gap-3 text-neutral-300">
                 <CalendarDays className="h-5 w-5 shrink-0 text-neutral-500" />
                 <div className="text-[15px] font-medium leading-tight">
-                  {toDisplayDate(selectedDate)}<br/>
-                  {to12h(selectedSlot)} – {to12h(addMinutes(selectedSlot, eventType.duration))}
+                  {selectedSlot.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: selectedTz })}<br/>
+                  {selectedSlot.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: selectedTz })} – {new Date(selectedSlot.getTime() + eventType.duration * 60000).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: selectedTz })}
                 </div>
+              </div>
+            )}
+            {rescheduleData && step === 'slots' && (
+              <div className="mt-4 p-3 bg-blue-900/20 border border-blue-900/50 rounded-xl">
+                 <p className="text-sm text-blue-400 font-medium">You are rescheduling a booking for {rescheduleData.bookerName}. Pick a new time.</p>
               </div>
             )}
 
@@ -424,7 +506,15 @@ export default function BookingPage() {
             </div>
             <div className="flex items-center gap-3 text-neutral-300">
               <Globe className="h-5 w-5 shrink-0 text-neutral-500" />
-              <span className="text-[15px] font-medium">Asia/Kolkata</span>
+              <select 
+                value={selectedTz}
+                onChange={(e) => setSelectedTz(e.target.value)}
+                className="bg-transparent border-none focus:ring-0 text-[15px] font-medium text-white cursor-pointer -ml-1 appearance-none outline-none hover:text-neutral-300 transition-colors"
+              >
+                {Intl.supportedValuesOf('timeZone').map(tz => (
+                  <option key={tz} value={tz} className="bg-[#1C1C1C] text-white">{tz}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
@@ -451,6 +541,7 @@ export default function BookingPage() {
                     slots={slots}
                     loading={slotsLoading}
                     onSlotSelect={handleSlotSelect}
+                    selectedTz={selectedTz}
                   />
                 )}
               </div>
@@ -462,6 +553,8 @@ export default function BookingPage() {
               eventType={eventType}
               selectedDate={selectedDate}
               selectedSlot={selectedSlot}
+              rescheduleData={rescheduleData}
+              selectedTz={selectedTz}
               onBack={handleBackToSlots}
               onSuccess={(data) => navigate("/booking-success", { state: data })}
             />

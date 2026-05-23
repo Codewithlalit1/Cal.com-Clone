@@ -1,6 +1,6 @@
 // src/pages/BookingSuccess.jsx
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
-import { Check, ExternalLink } from "lucide-react";
+import { Check, ExternalLink, ChevronLeft } from "lucide-react";
 
 export default function BookingSuccess() {
   const { state } = useLocation();
@@ -21,7 +21,15 @@ export default function BookingSuccess() {
   } = state;
 
   return (
-    <div className="min-h-screen bg-[#111111] flex flex-col items-center pt-20 px-4 font-sans text-white pb-10">
+    <div className="min-h-screen bg-[#111111] flex flex-col items-center pt-20 px-4 font-sans text-white pb-10 relative">
+      <button 
+        onClick={() => navigate("/")}
+        className="absolute top-6 left-6 sm:top-8 sm:left-8 flex items-center gap-2 text-[14px] font-semibold text-neutral-400 hover:text-white transition-all hover:bg-neutral-800 px-4 py-2 rounded-full border border-neutral-800 bg-[#1C1C1C]"
+      >
+        <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
+        Main Page
+      </button>
+
       <div className="w-full max-w-[600px] flex flex-col items-center">
         
         {/* Success Icon */}

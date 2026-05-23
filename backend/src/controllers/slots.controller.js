@@ -46,7 +46,7 @@ const ADMIN_USER_ID = 1;
 // =============================================================================
 export const getAvailableSlots = async (req, res) => {
   try {
-    const { date, slug } = req.query;
+    const { date, slug, excludeBookingId } = req.query;
 
     // ─── Step 1: Validate Query Parameters ───────────────────────────────────
     if (!date || !slug) {
@@ -136,9 +136,9 @@ export const getAvailableSlots = async (req, res) => {
 
     const existingBookings = await prisma.booking.findMany({
       where: {
-        eventTypeId: eventType.id,
         userId:      ADMIN_USER_ID,
         status:      "CONFIRMED",
+        ...(excludeBookingId && { id: { not: parseInt(excludeBookingId) } }),
         // Find all bookings whose startTime falls on the requested date
         startTime: {
           gte: dateStart,

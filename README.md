@@ -487,10 +487,10 @@ cal-clone-assignment/
 
 | | |
 |---|---|
-| **Name** | `YOUR NAME HERE` |
-| **Email** | `your.email@example.com` |
-| **GitHub** | [@your-github-handle](https://github.com/your-github-handle) |
-| **LinkedIn** | [linkedin.com/in/your-profile](https://linkedin.com/in/your-profile) |
+| **Name** | `Lalit Kumar` |
+| **Email** | `lalit.kumar@example.com` |
+| **GitHub** | [@Codewithlalit1](https://github.com/Codewithlalit1) |
+| **LinkedIn** | [linkedin.com/in/lalitkumar](https://linkedin.com/in/lalitkumar) |
 
 ---
 

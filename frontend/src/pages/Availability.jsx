@@ -1,6 +1,6 @@
 // src/pages/Availability.jsx
 import { useState, useEffect, useCallback } from "react";
-import { Save, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Save, Loader2, AlertCircle, CheckCircle2, Globe } from "lucide-react";
 import api from "../lib/api";
 
 // ─── Days displayed in the UI ─────────────────────────────────────────────────
@@ -15,20 +15,15 @@ const DAYS = [
   { label: "Sunday",    short: "Sun", dayOfWeek: 0 },
 ];
 
-// ─── Default schedule (used when the DB has no row for a given day) ───────────
 function buildDefaultSchedule() {
   return DAYS.map(({ dayOfWeek }) => ({
     dayOfWeek,
     startTime: "09:00",
     endTime: "17:00",
-    // Mon-Fri on by default, weekends off
     isEnabled: dayOfWeek >= 1 && dayOfWeek <= 5,
   }));
 }
 
-// =============================================================================
-// Sub-component: Toggle switch (pure CSS, no extra library)
-// =============================================================================
 function Toggle({ id, checked, onChange }) {
   return (
     <button
@@ -38,11 +33,11 @@ function Toggle({ id, checked, onChange }) {
       aria-checked={checked}
       onClick={onChange}
       className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 ${
-        checked ? "bg-gray-900" : "bg-gray-200"
+        checked ? "bg-white" : "bg-neutral-800"
       }`}
     >
       <span
-        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-black shadow ring-0 transition duration-200 ease-in-out ${
           checked ? "translate-x-4" : "translate-x-0"
         }`}
       />
@@ -50,78 +45,59 @@ function Toggle({ id, checked, onChange }) {
   );
 }
 
-// =============================================================================
-// Main: Availability page
-// =============================================================================
 export default function Availability() {
   const [schedule, setSchedule] = useState(buildDefaultSchedule());
+  const [timezone, setTimezone] = useState(() => {
+    return localStorage.getItem("availability_timezone") || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  });
   const [loading, setLoading]   = useState(true);
   const [saving, setSaving]     = useState(false);
   const [fetchError, setFetchError] = useState("");
-  const [notification, setNotification] = useState(null); // { type: 'success'|'error', msg }
+  const [notification, setNotification] = useState(null);
 
-  // ── Fetch existing availability on mount ────────────────────────────────────
   const fetchAvailability = useCallback(async () => {
     setLoading(true);
     setFetchError("");
     try {
       const res = await api.get("/api/availability");
-      const dbRows = res.data.data; // array of { dayOfWeek, startTime, endTime, isEnabled }
-
-      // Merge DB rows into our default schedule so all 7 days are always shown
+      const dbRows = res.data.data;
       setSchedule((prev) =>
         prev.map((day) => {
           const dbRow = dbRows.find((r) => r.dayOfWeek === day.dayOfWeek);
           return dbRow
-            ? {
-                dayOfWeek: day.dayOfWeek,
-                startTime: dbRow.startTime,
-                endTime:   dbRow.endTime,
-                isEnabled: dbRow.isEnabled,
-              }
+            ? { dayOfWeek: day.dayOfWeek, startTime: dbRow.startTime, endTime: dbRow.endTime, isEnabled: dbRow.isEnabled }
             : day;
         })
       );
     } catch (err) {
-      setFetchError(
-        err.response?.data?.message ||
-          "Could not load availability. Is the backend running on port 3001?"
-      );
+      setFetchError(err.response?.data?.message || "Could not load availability.");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchAvailability();
-  }, [fetchAvailability]);
+  useEffect(() => { fetchAvailability(); }, [fetchAvailability]);
 
-  // Auto-dismiss notification after 4 s
   useEffect(() => {
     if (!notification) return;
     const timer = setTimeout(() => setNotification(null), 4000);
     return () => clearTimeout(timer);
   }, [notification]);
 
-  // ── Toggle a day on/off ────────────────────────────────────────────────────
   function handleToggle(dayOfWeek) {
-    setSchedule((prev) =>
-      prev.map((d) =>
-        d.dayOfWeek === dayOfWeek ? { ...d, isEnabled: !d.isEnabled } : d
-      )
-    );
+    setSchedule((prev) => prev.map((d) => d.dayOfWeek === dayOfWeek ? { ...d, isEnabled: !d.isEnabled } : d));
   }
 
-  // ── Update start or end time ───────────────────────────────────────────────
   function handleTimeChange(dayOfWeek, field, value) {
-    setSchedule((prev) =>
-      prev.map((d) =>
-        d.dayOfWeek === dayOfWeek ? { ...d, [field]: value } : d
-      )
-    );
+    setSchedule((prev) => prev.map((d) => d.dayOfWeek === dayOfWeek ? { ...d, [field]: value } : d));
   }
 
-  // ── Validate times client-side before sending ──────────────────────────────
+  function handleTimezoneChange(e) {
+    const tz = e.target.value;
+    setTimezone(tz);
+    localStorage.setItem("availability_timezone", tz);
+  }
+
   function validate() {
     for (const day of schedule) {
       if (!day.isEnabled) continue;
@@ -133,164 +109,119 @@ export default function Availability() {
     return null;
   }
 
-  // ── Save handler ───────────────────────────────────────────────────────────
   async function handleSave(e) {
     e.preventDefault();
-
     const validationError = validate();
     if (validationError) {
       setNotification({ type: "error", msg: validationError });
       return;
     }
-
     setSaving(true);
     setNotification(null);
     try {
       await api.post("/api/availability", { availability: schedule });
       setNotification({ type: "success", msg: "Availability saved successfully." });
     } catch (err) {
-      const serverMsg =
-        err.response?.data?.message || "Failed to save. Please try again.";
-      setNotification({ type: "error", msg: serverMsg });
+      setNotification({ type: "error", msg: err.response?.data?.message || "Failed to save." });
     } finally {
       setSaving(false);
     }
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48 text-gray-400">
+      <div className="flex items-center justify-center h-48 text-neutral-500">
         <Loader2 className="h-5 w-5 animate-spin mr-2" />
-        <span className="text-sm">Loading availability…</span>
+        <span className="text-[15px]">Loading availability…</span>
       </div>
     );
   }
 
   if (fetchError) {
     return (
-      <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
-        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+      <div className="flex items-start gap-3 p-5 bg-red-950/20 border border-red-900/50 rounded-xl text-[15px] text-red-400">
+        <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
         <div>
           <p className="font-medium">Could not load availability</p>
-          <p className="mt-0.5 text-xs text-red-600">{fetchError}</p>
-          <button
-            onClick={fetchAvailability}
-            className="mt-2 text-xs font-medium underline underline-offset-2"
-          >
-            Try again
-          </button>
+          <p className="mt-1 text-sm text-red-400/80">{fetchError}</p>
+          <button onClick={fetchAvailability} className="mt-3 text-sm font-medium underline underline-offset-2 hover:text-red-300">Try again</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl">
-      {/* Page sub-heading */}
-      <p className="text-xs text-gray-500 mb-6">
-        Set the hours you are available for bookings each week.
-      </p>
+    <div className="max-w-3xl mx-auto text-white font-sans pt-2 pb-10">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight mb-1">Availability</h1>
+        <p className="text-[15px] text-neutral-400">Configure times when you are available for bookings.</p>
+      </div>
 
-      {/* Inline notification banner */}
       {notification && (
-        <div
-          className={`flex items-center gap-2 text-xs px-4 py-2.5 rounded-md mb-5 border ${
-            notification.type === "success"
-              ? "bg-green-50 border-green-200 text-green-700"
-              : "bg-red-50 border-red-200 text-red-700"
-          }`}
-        >
-          {notification.type === "success" ? (
-            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-          ) : (
-            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-          )}
-          {notification.msg}
+        <div className={`flex items-center gap-3 px-5 py-4 rounded-xl mb-6 border ${notification.type === "success" ? "bg-emerald-950/20 border-emerald-900/50 text-emerald-400" : "bg-red-950/20 border-red-900/50 text-red-400"}`}>
+          {notification.type === "success" ? <CheckCircle2 className="h-5 w-5 shrink-0" /> : <AlertCircle className="h-5 w-5 shrink-0" />}
+          <span className="text-[15px] font-medium">{notification.msg}</span>
         </div>
       )}
 
       <form onSubmit={handleSave}>
-        {/* Schedule table */}
-        <div className="bg-white border border-gray-200 rounded-md shadow-sm divide-y divide-gray-100">
+        
+        {/* Timezone Selector */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-[#1C1C1C] border border-neutral-800 rounded-xl">
+          <div className="flex items-center gap-3 mb-4 sm:mb-0">
+            <Globe className="h-5 w-5 text-neutral-400" />
+            <div>
+              <p className="text-[15px] font-semibold text-white">Timezone</p>
+              <p className="text-sm text-neutral-500">Set your local timezone for these hours.</p>
+            </div>
+          </div>
+          <select 
+            value={timezone} 
+            onChange={handleTimezoneChange}
+            className="bg-[#111111] text-white border border-neutral-700 rounded-lg px-4 py-2 text-[14px] focus:outline-none focus:ring-2 focus:ring-neutral-500 w-full sm:w-64"
+          >
+            {Intl.supportedValuesOf('timeZone').map(tz => (
+              <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Schedule Grid */}
+        <div className="bg-[#1C1C1C] border border-neutral-800 rounded-xl overflow-hidden shadow-sm">
           {DAYS.map(({ label, short, dayOfWeek }) => {
             const day = schedule.find((d) => d.dayOfWeek === dayOfWeek);
-
             return (
-              <div
-                key={dayOfWeek}
-                className={`flex items-center gap-4 px-5 py-3.5 transition-colors duration-150 ${
-                  day.isEnabled ? "bg-white" : "bg-gray-50/60"
-                }`}
-              >
-                {/* Toggle */}
-                <Toggle
-                  id={`toggle-${dayOfWeek}`}
-                  checked={day.isEnabled}
-                  onChange={() => handleToggle(dayOfWeek)}
-                />
+              <div key={dayOfWeek} className={`flex flex-col sm:flex-row sm:items-center gap-4 px-6 py-5 border-b border-neutral-800 last:border-b-0 transition-colors duration-150 ${day.isEnabled ? "bg-[#1C1C1C]" : "bg-neutral-900/30"}`}>
+                
+                <div className="flex items-center gap-4 w-40">
+                  <Toggle id={`toggle-${dayOfWeek}`} checked={day.isEnabled} onChange={() => handleToggle(dayOfWeek)} />
+                  <span className={`text-[15px] font-semibold select-none ${day.isEnabled ? "text-white" : "text-neutral-500"}`}>
+                    <span className="hidden sm:inline">{label}</span>
+                    <span className="sm:hidden">{short}</span>
+                  </span>
+                </div>
 
-                {/* Day label */}
-                <span
-                  className={`w-24 text-sm font-medium select-none ${
-                    day.isEnabled ? "text-gray-800" : "text-gray-400"
-                  }`}
-                >
-                  <span className="hidden sm:inline">{label}</span>
-                  <span className="sm:hidden">{short}</span>
-                </span>
-
-                {/* Time inputs — only when enabled */}
                 {day.isEnabled ? (
-                  <div className="flex items-center gap-2 flex-1">
-                    <input
-                      id={`start-${dayOfWeek}`}
-                      type="time"
-                      value={day.startTime}
-                      onChange={(e) =>
-                        handleTimeChange(dayOfWeek, "startTime", e.target.value)
-                      }
-                      className="text-sm px-2.5 py-1.5 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-gray-800 bg-white"
-                      required={day.isEnabled}
-                    />
-                    <span className="text-xs text-gray-400 select-none">to</span>
-                    <input
-                      id={`end-${dayOfWeek}`}
-                      type="time"
-                      value={day.endTime}
-                      onChange={(e) =>
-                        handleTimeChange(dayOfWeek, "endTime", e.target.value)
-                      }
-                      className="text-sm px-2.5 py-1.5 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent text-gray-800 bg-white"
-                      required={day.isEnabled}
-                    />
+                  <div className="flex items-center gap-3">
+                    <input type="time" value={day.startTime} onChange={(e) => handleTimeChange(dayOfWeek, "startTime", e.target.value)} required={day.isEnabled} className="bg-[#111111] text-white text-[15px] px-3 py-2 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-500" />
+                    <span className="text-neutral-500 font-medium">-</span>
+                    <input type="time" value={day.endTime} onChange={(e) => handleTimeChange(dayOfWeek, "endTime", e.target.value)} required={day.isEnabled} className="bg-[#111111] text-white text-[15px] px-3 py-2 border border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-500" />
                   </div>
                 ) : (
-                  <span className="flex-1 text-xs text-gray-400 select-none">
-                    Unavailable
-                  </span>
+                  <span className="text-[15px] text-neutral-600 font-medium select-none">Unavailable</span>
                 )}
               </div>
             );
           })}
         </div>
 
-        {/* Save button */}
-        <div className="mt-5 flex justify-end">
-          <button
-            id="save-availability-btn"
-            type="submit"
-            disabled={saving}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-gray-900 hover:bg-gray-700 rounded-md transition-colors shadow-sm disabled:opacity-60"
-          >
-            {saving ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Save className="h-3.5 w-3.5" strokeWidth={2} />
-            )}
+        <div className="mt-8 flex justify-end">
+          <button type="submit" disabled={saving} className="flex items-center justify-center gap-2 px-6 py-2.5 text-[15px] font-semibold text-black bg-white hover:bg-neutral-200 rounded-full transition-colors disabled:opacity-70 shadow-sm">
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             {saving ? "Saving…" : "Save Availability"}
           </button>
         </div>
+
       </form>
     </div>
   );

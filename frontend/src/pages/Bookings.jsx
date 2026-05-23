@@ -1,160 +1,95 @@
 // src/pages/Bookings.jsx
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Loader2,
   AlertCircle,
-  CalendarOff,
+  Video,
+  MoreHorizontal,
   Clock,
-  Mail,
-  User,
+  Send,
+  MapPin,
+  UserPlus,
+  Video as VideoIcon,
+  Info,
+  EyeOff,
+  Flag,
   XCircle,
-  CheckCircle2,
-  Ban,
+  Filter,
+  ChevronDown,
+  Globe,
+  ChevronLeft,
+  ChevronRight,
+  Search
 } from "lucide-react";
 import api from "../lib/api";
 
-function formatDate(isoString) {
-  return new Date(isoString).toLocaleDateString("en-US", {
-    weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC",
-  });
+function getAbsoluteDate(dateStr) {
+  const date = new Date(dateStr);
+  return new Date(date.getTime() - (5 * 60 + 30) * 60000); // Subtract 5.5 hours (IST offset) to get true UTC
 }
 
-function formatTime(isoString) {
-  return new Date(isoString).toLocaleTimeString("en-US", {
-    hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC",
-  });
+function formatDayAndDate(dateStr, tz) {
+  const date = getAbsoluteDate(dateStr);
+  const day = date.toLocaleDateString("en-US", { weekday: "short", timeZone: tz });
+  const dayNum = date.toLocaleDateString("en-US", { day: "numeric", timeZone: tz });
+  const month = date.toLocaleDateString("en-US", { month: "short", timeZone: tz });
+  return `${day}, ${dayNum} ${month}`;
+}
+
+function formatTimeRange(startStr, endStr, tz) {
+  const start = getAbsoluteDate(startStr);
+  const end = getAbsoluteDate(endStr);
+  const s = start.toLocaleTimeString("en-US", {
+    hour: "numeric", minute: "2-digit", hour12: true, timeZone: tz,
+  }).toLowerCase();
+  const e = end.toLocaleTimeString("en-US", {
+    hour: "numeric", minute: "2-digit", hour12: true, timeZone: tz,
+  }).toLowerCase();
+  return `${s} - ${e}`;
 }
 
 function isUpcoming(booking) {
   return booking.status === "CONFIRMED" && new Date(booking.startTime) > new Date();
 }
 
-function StatusBadge({ status }) {
-  const map = {
-    CONFIRMED: { className: "bg-emerald-950/40 text-emerald-400 border border-emerald-900/50", dot: "bg-emerald-500", label: "Confirmed" },
-    CANCELLED: { className: "bg-neutral-900 text-neutral-400 border border-neutral-800", dot: "bg-neutral-500", label: "Cancelled" },
-    COMPLETED: { className: "bg-blue-950/40 text-blue-400 border border-blue-900/50", dot: "bg-blue-500", label: "Completed" },
-  };
-  const { className, dot, label } = map[status] ?? map.CONFIRMED;
+function DropdownMenu({ bookingId, bookingSlug, onCancel, onClose }) {
+  const menuRef = useRef(null);
 
-  return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${className}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
-      {label}
-    </span>
-  );
-}
-
-function CancelButton({ bookingId, onCancel }) {
-  const [confirming, setConfirming] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const timerRef = useRef(null);
-
-  function handleClick() {
-    if (!confirming) {
-      setConfirming(true);
-      timerRef.current = setTimeout(() => setConfirming(false), 3000);
-    } else {
-      clearTimeout(timerRef.current);
-      setConfirming(false);
-      executeCanel();
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        onClose();
+      }
     }
-  }
-
-  async function executeCanel() {
-    setLoading(true);
-    await onCancel(bookingId);
-    setLoading(false);
-  }
-
-  useEffect(() => () => clearTimeout(timerRef.current), []);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [onClose]);
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={loading}
-      className={`flex items-center gap-1 text-[13px] font-medium px-3 py-1.5 rounded-lg transition-colors duration-150 disabled:opacity-50 ${
-        confirming
-          ? "bg-red-950/40 text-red-400 hover:bg-red-900/50 border border-red-900/50"
-          : "text-neutral-400 hover:text-red-400 hover:bg-neutral-800 border border-transparent hover:border-neutral-700"
-      }`}
-    >
-      {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" strokeWidth={1.75} />}
-      {loading ? "Cancelling…" : confirming ? "Confirm?" : "Cancel"}
-    </button>
-  );
-}
-
-function BookingsTable({ bookings, showCancelCol, onCancel }) {
-  if (bookings.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 border border-dashed border-neutral-800 rounded-xl bg-[#1C1C1C]/50 mt-4">
-        <CalendarOff className="h-8 w-8 text-neutral-600 mb-3" strokeWidth={1.5} />
-        <p className="text-[15px] font-medium text-neutral-400">No bookings here</p>
-        <p className="text-sm text-neutral-500 mt-1">
-          {showCancelCol ? "You have no upcoming confirmed bookings." : "Past and cancelled bookings will appear here."}
-        </p>
+    <div ref={menuRef} className="absolute right-0 top-10 w-56 bg-[#111111] border border-neutral-800 rounded-xl shadow-2xl py-1 z-50 overflow-hidden font-sans">
+      
+      {/* Edit Event Group */}
+      <div className="px-3 py-2 text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">
+        Edit event
       </div>
-    );
-  }
+      <button className="w-full flex items-center gap-3 px-3 py-2 text-[14px] text-white hover:bg-neutral-800 transition-colors" onClick={() => window.open(`/book/${bookingSlug}?rescheduleId=${bookingId}`, "_blank")}>
+        <Clock className="h-4 w-4 text-neutral-400" /> Reschedule booking
+      </button>
 
-  return (
-    <div className="overflow-x-auto rounded-xl border border-neutral-800 bg-[#1C1C1C] shadow-sm mt-4">
-      <table className="min-w-full text-sm">
-        <thead>
-          <tr className="bg-[#111111] border-b border-neutral-800">
-            {["Event Type", "Booker", "Date", "Time", "Status", ...(showCancelCol ? [""] : [])].map((heading) => (
-              <th key={heading} className="px-5 py-3.5 text-left text-[13px] font-semibold text-neutral-400 uppercase tracking-wide whitespace-nowrap">
-                {heading}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-neutral-800/50">
-          {bookings.map((b) => (
-            <tr key={b.id} className="hover:bg-neutral-800/30 transition-colors duration-150">
-              <td className="px-5 py-4 whitespace-nowrap">
-                <div className="flex items-center gap-2.5">
-                  <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: b.eventType?.color ?? "#6366f1" }} />
-                  <span className="font-semibold text-white text-[15px]">{b.eventType?.title ?? "—"}</span>
-                  <span className="text-neutral-500 text-[13px]">· {b.eventType?.duration}m</span>
-                </div>
-              </td>
-              <td className="px-5 py-4">
-                <div className="flex flex-col gap-1">
-                  <span className="flex items-center gap-2 font-medium text-neutral-200 text-[14px]">
-                    <User className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
-                    {b.bookerName}
-                  </span>
-                  <span className="flex items-center gap-2 text-[13px] text-neutral-500">
-                    <Mail className="h-3.5 w-3.5 text-neutral-600 shrink-0" />
-                    {b.bookerEmail}
-                  </span>
-                </div>
-              </td>
-              <td className="px-5 py-4 whitespace-nowrap text-neutral-300 font-medium">
-                {formatDate(b.startTime)}
-              </td>
-              <td className="px-5 py-4 whitespace-nowrap">
-                <span className="flex items-center gap-2 text-neutral-300 font-medium">
-                  <Clock className="h-4 w-4 text-neutral-500 shrink-0" strokeWidth={1.75} />
-                  {formatTime(b.startTime)}
-                  <span className="text-neutral-600">–</span>
-                  {formatTime(b.endTime)}
-                </span>
-              </td>
-              <td className="px-5 py-4 whitespace-nowrap">
-                <StatusBadge status={b.status} />
-              </td>
-              {showCancelCol && (
-                <td className="px-5 py-4 whitespace-nowrap text-right">
-                  {b.status === "CONFIRMED" && <CancelButton bookingId={b.id} onCancel={onCancel} />}
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="h-px bg-neutral-800 my-1" />
+
+      <button 
+        onClick={() => {
+          if(confirm("Are you sure you want to cancel this event?")) {
+            onCancel(bookingId);
+            onClose();
+          }
+        }}
+        className="w-full flex items-center gap-3 px-3 py-2 text-[14px] text-white hover:bg-red-950/50 hover:text-red-400 transition-colors"
+      >
+        <XCircle className="h-4 w-4 text-neutral-400 group-hover:text-red-400" /> Cancel event
+      </button>
+
     </div>
   );
 }
@@ -163,7 +98,14 @@ export default function Bookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("upcoming");
+  const [activeTab, setActiveTab] = useState("Upcoming");
+  const [viewTz, setViewTz] = useState("Asia/Kolkata");
+  const [openMenuId, setOpenMenuId] = useState(null);
+  
+  // Pagination and filtering states
+  const [filterText, setFilterText] = useState("");
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => { fetchBookings(); }, []);
 
@@ -180,11 +122,35 @@ export default function Bookings() {
     }
   }
 
-  const { upcoming, past } = useMemo(() => {
-    const upcoming = bookings.filter(isUpcoming).sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
-    const past = bookings.filter((b) => !isUpcoming(b)).sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
-    return { upcoming, past };
-  }, [bookings]);
+  const filteredBookings = useMemo(() => {
+    let list = [];
+    if (activeTab === "Upcoming") {
+      list = bookings.filter(isUpcoming).sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    } else if (activeTab === "Past") {
+      list = bookings.filter((b) => b.status === "CONFIRMED" && !isUpcoming(b)).sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+    } else if (activeTab === "Canceled") {
+      list = bookings.filter((b) => b.status === "CANCELLED").sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+    }
+    
+    if (filterText.trim() !== "") {
+      const lower = filterText.toLowerCase();
+      list = list.filter(b => 
+        b.bookerName.toLowerCase().includes(lower) || 
+        b.bookerEmail.toLowerCase().includes(lower) ||
+        (b.eventType?.title || "").toLowerCase().includes(lower)
+      );
+    }
+    
+    return list;
+  }, [bookings, activeTab, filterText]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, filterText, rowsPerPage]);
+
+  const totalPages = Math.ceil(filteredBookings.length / rowsPerPage);
+  const paginatedBookings = filteredBookings.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   async function handleCancel(id) {
     try {
@@ -195,17 +161,61 @@ export default function Bookings() {
     }
   }
 
-  const tabs = [
-    { id: "upcoming", label: "Upcoming", count: upcoming.length, icon: CheckCircle2 },
-    { id: "past", label: "Past", count: past.length, icon: XCircle },
-  ];
-  const visibleBookings = activeTab === "upcoming" ? upcoming : past;
+  const tabs = ["Upcoming", "Past", "Canceled"];
 
   return (
-    <div className="max-w-6xl mx-auto text-white">
-      <div className="mb-8 pt-2">
+    <div className="max-w-6xl mx-auto text-white font-sans pt-2 pb-10">
+      
+      {/* Page Header */}
+      <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight mb-1">Bookings</h1>
-        <p className="text-[15px] text-neutral-400">View and manage all scheduled meetings.</p>
+        <p className="text-[15px] text-neutral-400">See upcoming and past events booked through your event type links.</p>
+      </div>
+
+      {/* Tabs and Filters */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-[#1C1C1C] border border-neutral-800 rounded-xl p-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-1.5 text-[14px] font-medium rounded-lg transition-colors duration-150 ${
+                  activeTab === tab 
+                    ? "bg-[#2C2C2C] text-white shadow-sm" 
+                    : "text-neutral-400 hover:text-neutral-200"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+          <div className="relative ml-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
+            <input 
+              type="text" 
+              placeholder="Filter by name or event..." 
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              className="pl-9 pr-3 py-1.5 h-9 bg-[#111111] border border-neutral-800 rounded-xl text-[14px] text-white focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-neutral-600 transition-all w-full sm:w-56"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 h-9 bg-[#111111] border border-neutral-800 rounded-xl text-[14px] font-medium text-white hover:bg-neutral-800 transition-colors">
+            <Globe className="h-4 w-4 text-neutral-500" />
+            <select 
+              value={viewTz}
+              onChange={(e) => setViewTz(e.target.value)}
+              className="bg-transparent border-none focus:ring-0 text-[14px] font-medium text-white cursor-pointer -ml-1 appearance-none outline-none hover:text-neutral-300 transition-colors"
+            >
+              {Intl.supportedValuesOf('timeZone').map(tz => (
+                <option key={tz} value={tz} className="bg-[#1C1C1C] text-white">{tz}</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       {loading && (
@@ -221,45 +231,130 @@ export default function Bookings() {
           <div>
             <p className="font-medium">Could not load bookings</p>
             <p className="mt-1 text-sm text-red-400/80">{error}</p>
-            <button onClick={fetchBookings} className="mt-3 text-sm font-medium underline underline-offset-2 hover:text-red-300">Try again</button>
           </div>
         </div>
       )}
 
+      {/* Bookings List Layout */}
       {!loading && !error && (
-        <>
-          <div className="flex gap-4 border-b border-neutral-800">
-            {tabs.map(({ id, label, count, icon: Icon }) => {
-              const active = activeTab === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id)}
-                  className={`flex items-center gap-2 pb-3 text-[15px] font-medium border-b-2 transition-colors duration-150 focus:outline-none ${
-                    active ? "border-white text-white" : "border-transparent text-neutral-500 hover:text-neutral-300"
-                  }`}
-                >
-                  <Icon className={`h-4 w-4 ${active ? "text-white" : "text-neutral-500"}`} strokeWidth={2} />
-                  {label}
-                  <span className={`inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full text-[11px] font-bold ${
-                    active ? "bg-white text-black" : "bg-neutral-800 text-neutral-400"
-                  }`}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+        <div className="bg-[#111111] border border-neutral-800 rounded-2xl overflow-visible">
+          
+          <div className="px-6 py-4 border-b border-neutral-800">
+            <span className="text-[11px] font-bold text-neutral-400 tracking-wider uppercase">Next</span>
           </div>
 
-          <BookingsTable bookings={visibleBookings} showCancelCol={activeTab === "upcoming"} onCancel={handleCancel} />
+          {paginatedBookings.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <p className="text-[15px] font-medium text-neutral-500">No {activeTab.toLowerCase()} bookings found</p>
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              {paginatedBookings.map((b) => {
+                let guestTz = "Asia/Kolkata";
+                let displayNotes = b.notes || "";
+                const tzMatch = displayNotes.match(/^\[TZ:\s*(.+?)\](?:\n\n)?([\s\S]*)$/);
+                if (tzMatch) {
+                  guestTz = tzMatch[1];
+                  displayNotes = tzMatch[2];
+                }
+                
+                return (
+                <div key={b.id} className="group flex justify-between items-start px-6 py-5 border-b border-neutral-800/50 hover:bg-[#161616] transition-colors duration-150 last:border-b-0">
+                  
+                  <div className="flex flex-col md:flex-row gap-4 md:gap-16 lg:gap-24">
+                    {/* Date and Time Column */}
+                    <div className="flex flex-col min-w-[150px]">
+                      <span className="text-[15px] font-semibold text-white tracking-tight">{formatDayAndDate(b.startTime, viewTz)}</span>
+                      <span className="text-[14px] text-neutral-400 mt-0.5">{formatTimeRange(b.startTime, b.endTime, viewTz)}</span>
+                      <div className="flex items-center gap-1.5 mt-2">
+                         <Globe className="h-[14px] w-[14px] text-neutral-400 shrink-0" />
+                         <span className="text-[13px] text-neutral-400">{viewTz} {guestTz !== viewTz && `(Booked in ${guestTz})`}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1">
+                         <Video className="h-[14px] w-[14px] text-neutral-400 shrink-0" />
+                         <span className="text-[14px] text-blue-400 font-medium hover:underline cursor-pointer">Join Cal Video</span>
+                      </div>
+                    </div>
+                    
+                    {/* Title and Participants Column */}
+                    <div className="flex flex-col">
+                      <span className="text-[15px] font-semibold text-white tracking-tight">
+                        {b.eventType?.duration || "30"} min meeting between {b.bookerName} and Lalit Kumar
+                      </span>
+                      <span className="text-[14px] text-neutral-400 mt-0.5">
+                        You and {b.bookerName}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Menu Button */}
+                  <div className="relative">
+                    <button 
+                      onClick={() => setOpenMenuId(openMenuId === b.id ? null : b.id)}
+                      className="p-2 border border-neutral-700 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+                    >
+                       <MoreHorizontal className="h-[18px] w-[18px]" />
+                    </button>
+                    {openMenuId === b.id && (
+                      <DropdownMenu 
+                        bookingId={b.id} 
+                        bookingSlug={b.eventType?.slug}
+                        onCancel={handleCancel}
+                        onClose={() => setOpenMenuId(null)}
+                      />
+                    )}
+                  </div>
 
-          {visibleBookings.length > 0 && (
-            <p className="mt-4 text-[13px] text-neutral-500 text-right font-medium">
-              {visibleBookings.length} {visibleBookings.length === 1 ? "booking" : "bookings"}
-            </p>
+                </div>
+              )})}
+            </div>
           )}
-        </>
+
+          {/* Footer Pagination */}
+          <div className="px-6 py-3 border-t border-neutral-800 flex flex-col sm:flex-row items-center justify-between bg-[#161616] rounded-b-2xl gap-4">
+            <div className="flex items-center gap-3">
+              <div className="relative flex items-center px-3 py-1.5 bg-[#111111] border border-neutral-800 rounded-lg text-sm text-white focus-within:ring-1 focus-within:ring-white/20">
+                <select 
+                  value={rowsPerPage}
+                  onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                  className="bg-transparent appearance-none outline-none border-none pr-6 cursor-pointer font-medium"
+                >
+                  <option value={5} className="bg-[#1C1C1C]">5</option>
+                  <option value={10} className="bg-[#1C1C1C]">10</option>
+                  <option value={20} className="bg-[#1C1C1C]">20</option>
+                  <option value={50} className="bg-[#1C1C1C]">50</option>
+                </select>
+                <ChevronDown className="absolute right-3 h-4 w-4 text-neutral-500 pointer-events-none" />
+              </div>
+              <span className="text-sm text-neutral-400">rows per page</span>
+            </div>
+            
+            <div className="flex items-center gap-4 text-sm text-neutral-400">
+               <span>
+                 {filteredBookings.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}-{Math.min(currentPage * rowsPerPage, filteredBookings.length)} of {filteredBookings.length}
+               </span>
+               <div className="flex items-center gap-1">
+                 <button 
+                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                   disabled={currentPage === 1}
+                   className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                 >
+                   <ChevronLeft className="h-5 w-5" />
+                 </button>
+                 <button 
+                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                   disabled={currentPage >= totalPages || totalPages === 0}
+                   className="p-1 rounded text-neutral-400 hover:text-white hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                 >
+                   <ChevronRight className="h-5 w-5" />
+                 </button>
+               </div>
+            </div>
+          </div>
+
+        </div>
       )}
+
     </div>
   );
 }
