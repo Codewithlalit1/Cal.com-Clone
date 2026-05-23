@@ -63,7 +63,7 @@ function CalendarGrid({ year, month, selectedDate, today, onSelect, onPrev, onNe
   const canGoPrev = viewStart > thisMonthStart;
 
   return (
-    <div className="select-none text-white w-[340px]">
+    <div className="select-none text-white w-full sm:w-[340px]">
       <div className="flex items-center justify-between mb-6">
         <span className="text-[15px] font-semibold tracking-wide">
           {MONTH_NAMES[month]} <span className="text-neutral-400 font-normal">{year}</span>
@@ -130,7 +130,7 @@ function SlotsPanel({ date, slots, loading, onSlotSelect, selectedTz }) {
   const dayNum = date.toLocaleDateString("en-US", { day: "numeric", timeZone: selectedTz });
 
   return (
-    <div className="flex flex-col h-full w-[240px]">
+    <div className="flex flex-col h-full w-full sm:w-[240px]">
       <div className="flex items-center justify-between mb-6">
         <span className="text-[15px] font-medium text-white">{dayName} {dayNum}</span>
         <div className="text-[13px] text-neutral-400">12h  24h</div>
@@ -237,7 +237,7 @@ function BookingForm({ eventType, selectedDate, selectedSlot, rescheduleData, se
   }
 
   return (
-    <div className="flex flex-col w-[440px]">
+    <div className="flex flex-col w-full sm:w-[440px]">
       {error && (
         <div className="flex items-start gap-2 text-sm text-red-400 bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3 mb-6">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -520,10 +520,10 @@ export default function BookingPage() {
         </div>
 
         {/* Right Panel(s) */}
-        <div className="flex p-8 relative">
+        <div className="flex flex-col p-6 sm:p-8 relative">
           
           {step === "slots" && (
-            <div className="flex gap-8">
+            <div className="flex flex-col md:flex-row gap-8">
               <CalendarGrid
                 year={viewYear}
                 month={viewMonth}
@@ -534,7 +534,7 @@ export default function BookingPage() {
                 onNext={nextMonth}
               />
               
-              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${selectedDate ? 'w-[240px] opacity-100' : 'w-0 opacity-0'}`}>
+              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${selectedDate ? 'h-auto opacity-100 md:w-[240px]' : 'h-0 opacity-0 md:h-auto md:w-0'}`}>
                 {selectedDate && (
                   <SlotsPanel
                     date={selectedDate}

@@ -371,8 +371,24 @@ export default function Bookings() {
 
       {/* Side Detail Pane */}
       {selectedBooking && (
-        <div className="w-full lg:w-[420px] shrink-0 bg-[#111111] border border-neutral-800 rounded-2xl p-6 self-start sticky top-6 font-sans">
-          <div className="flex justify-between items-center mb-6">
+        <div className="
+          fixed inset-0 z-50 flex items-end
+          lg:static lg:inset-auto lg:z-auto lg:items-start lg:block
+          w-full lg:w-[420px] shrink-0 font-sans
+        ">
+          {/* Dark Overlay for Mobile */}
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm lg:hidden"
+            onClick={() => setSelectedBooking(null)}
+          />
+
+          {/* Pane Content */}
+          <div className="
+            relative w-full bg-[#111111] border border-neutral-800 
+            rounded-t-2xl p-6 pb-10 max-h-[85vh] overflow-y-auto
+            lg:rounded-2xl lg:pb-6 lg:max-h-none lg:overflow-visible lg:self-start lg:sticky lg:top-6
+          ">
+            <div className="flex justify-between items-center mb-6">
             <span className="px-2.5 py-1 text-xs font-semibold bg-emerald-950/40 text-emerald-400 border border-emerald-900/50 rounded-md">
               {selectedBooking.status === "CONFIRMED" ? "Confirmed" : selectedBooking.status === "CANCELLED" ? "Canceled" : "Completed"}
             </span>
@@ -474,6 +490,7 @@ export default function Bookings() {
                 </div>
               )}
             </div>
+          </div>
           </div>
         </div>
       )}
