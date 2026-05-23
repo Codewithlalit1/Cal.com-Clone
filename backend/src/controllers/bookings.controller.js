@@ -61,11 +61,10 @@ export const listBookings = async (req, res) => {
         ...(eventTypeId && { eventTypeId: parseInt(eventTypeId) }),
       },
       include: {
-        // Include summary fields from the related EventType so the frontend
-        // doesn't need to make a separate API call for each booking row.
         eventType: {
           select: { title: true, duration: true, color: true, slug: true },
         },
+        user: { select: { name: true, email: true } }
       },
       orderBy: { startTime: "asc" },
     });

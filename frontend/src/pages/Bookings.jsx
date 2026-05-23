@@ -106,6 +106,7 @@ export default function Bookings() {
   const [filterText, setFilterText] = useState("");
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedBooking, setSelectedBooking] = useState(null);
 
   useEffect(() => { fetchBookings(); }, []);
 
@@ -149,6 +150,10 @@ export default function Bookings() {
     setCurrentPage(1);
   }, [activeTab, filterText, rowsPerPage]);
 
+  useEffect(() => {
+    setSelectedBooking(null);
+  }, [activeTab, filterText]);
+
   const totalPages = Math.ceil(filteredBookings.length / rowsPerPage);
   const paginatedBookings = filteredBookings.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
@@ -164,11 +169,14 @@ export default function Bookings() {
   const tabs = ["Upcoming", "Past", "Canceled"];
 
   return (
-    <div className="max-w-6xl mx-auto text-white font-sans pt-2 pb-10">
+    <div className="max-w-[1400px] mx-auto text-white font-sans pt-2 pb-10 flex flex-col lg:flex-row gap-6 px-4 sm:px-6">
       
-      {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight mb-1">Bookings</h1>
+      {/* Main Column */}
+      <div className="flex-1 min-w-0">
+        
+        {/* Page Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold tracking-tight mb-1">Bookings</h1>
         <p className="text-[15px] text-neutral-400">See upcoming and past events booked through your event type links.</p>
       </div>
 
@@ -259,9 +267,13 @@ export default function Bookings() {
                 }
                 
                 return (
-                <div key={b.id} className="group flex justify-between items-start px-6 py-5 border-b border-neutral-800/50 hover:bg-[#161616] transition-colors duration-150 last:border-b-0">
+                <div 
+                  key={b.id} 
+                  onClick={() => setSelectedBooking(b)}
+                  className={`group flex justify-between items-start px-6 py-5 border-b border-neutral-800/50 hover:bg-[#1A1A1A] transition-colors duration-150 cursor-pointer last:border-b-0 ${selectedBooking?.id === b.id ? 'bg-[#1A1A1A] border-l-[3px] border-l-white' : 'border-l-[3px] border-l-transparent'}`}
+                >
                   
-                  <div className="flex flex-col md:flex-row gap-4 md:gap-16 lg:gap-24">
+                  <div className="flex flex-col md:flex-row gap-4 md:gap-16 lg:gap-24 pointer-events-none">
                     {/* Date and Time Column */}
                     <div className="flex flex-col min-w-[150px]">
                       <span className="text-[15px] font-semibold text-white tracking-tight">{formatDayAndDate(b.startTime, viewTz)}</span>
@@ -352,6 +364,117 @@ export default function Bookings() {
             </div>
           </div>
 
+        </div>
+      )}
+
+      </div>
+
+      {/* Side Detail Pane */}
+      {selectedBooking && (
+        <div className="w-full lg:w-[420px] shrink-0 bg-[#111111] border border-neutral-800 rounded-2xl p-6 self-start sticky top-6 font-sans">
+          <div className="flex justify-between items-center mb-6">
+            <span className="px-2.5 py-1 text-xs font-semibold bg-emerald-950/40 text-emerald-400 border border-emerald-900/50 rounded-md">
+              {selectedBooking.status === "CONFIRMED" ? "Confirmed" : selectedBooking.status === "CANCELLED" ? "Canceled" : "Completed"}
+            </span>
+            <div className="flex items-center gap-2">
+              <button className="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 transition-colors"><ChevronDown className="h-4 w-4" /></button>
+              <button onClick={() => setSelectedBooking(null)} className="p-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 transition-colors"><XCircle className="h-4 w-4" /></button>
+            </div>
+          </div>
+
+          <h2 className="text-[20px] font-bold text-white leading-snug mb-8">
+            {selectedBooking.eventType?.duration || 30} min meeting between {selectedBooking.bookerName} and {selectedBooking.user?.name || "Lalit Kumar"}
+          </h2>
+
+          <div className="space-y-6">
+            <div>
+              <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2 block">When</span>
+              <p className="text-[14px] text-white font-medium">
+                {getAbsoluteDate(selectedBooking.startTime).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: viewTz })}
+              </p>
+              <p className="text-[14px] text-neutral-400 mt-0.5">
+                {formatTimeRange(selectedBooking.startTime, selectedBooking.endTime, viewTz)} ({viewTz})
+              </p>
+            </div>
+
+            <div className="h-px bg-neutral-800/50" />
+
+            <div>
+              <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-3 block">Who</span>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-medium text-white shrink-0">
+                    {(selectedBooking.user?.name || "L")[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[14px] font-medium text-white">{selectedBooking.user?.name || "Lalit Kumar"}</span>
+                      <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-neutral-800 text-white rounded">Host</span>
+                    </div>
+                    <span className="text-[13px] text-neutral-400">{selectedBooking.user?.email || "admin@example.com"}</span>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3">
+                  <div className="h-8 w-8 rounded-full bg-purple-600 flex items-center justify-center text-sm font-medium text-white shrink-0">
+                    {selectedBooking.bookerName[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <span className="text-[14px] font-medium text-white block">{selectedBooking.bookerName}</span>
+                    <span className="text-[13px] text-neutral-400">{selectedBooking.bookerEmail}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="h-px bg-neutral-800/50" />
+
+            <div>
+              <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2 block">Where</span>
+              <div className="flex items-center gap-2">
+                <Video className="h-4 w-4 text-neutral-400 shrink-0" />
+                <span className="text-[14px] text-white">Cal Video: </span>
+                <span className="text-[14px] text-blue-400 cursor-pointer hover:underline truncate">https://app.cal.com/video/qotNao...</span>
+              </div>
+            </div>
+            
+            {selectedBooking.notes && (
+              <>
+                <div className="h-px bg-neutral-800/50" />
+                <div>
+                  <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2 block">Notes</span>
+                  <p className="text-[14px] text-neutral-300 whitespace-pre-wrap">
+                    {selectedBooking.notes.replace(/^\[TZ: .+?\](?:\n\n)?/, "")}
+                  </p>
+                </div>
+              </>
+            )}
+            
+          </div>
+
+          <div className="mt-8 pt-4 border-t border-neutral-800 flex items-center justify-between">
+            <button className="flex items-center gap-2 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white text-[14px] font-medium rounded-lg transition-colors">
+              <Video className="h-4 w-4" /> Join Cal Video
+            </button>
+            <div className="relative">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === selectedBooking.id ? null : selectedBooking.id); }}
+                className="p-2 border border-neutral-700 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+              {openMenuId === selectedBooking.id && (
+                <div className="absolute bottom-full right-0 mb-2">
+                  <DropdownMenu 
+                    bookingId={selectedBooking.id} 
+                    bookingSlug={selectedBooking.eventType?.slug}
+                    onCancel={(id) => { handleCancel(id); setSelectedBooking(null); }}
+                    onClose={() => setOpenMenuId(null)}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
