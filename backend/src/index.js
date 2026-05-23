@@ -55,10 +55,13 @@ app.use(
       // Allow requests with no Origin header (curl, Postman, mobile apps, SSR)
       if (!origin) return callback(null, true);
 
-      // In production: only the explicitly configured origin is allowed
+      // In production: check if the origin is in the allowed list
       if (process.env.NODE_ENV === "production") {
-        if (ALLOWED_ORIGIN_PROD && origin === ALLOWED_ORIGIN_PROD) {
-          return callback(null, true);
+        if (ALLOWED_ORIGIN_PROD) {
+          const allowedOrigins = ALLOWED_ORIGIN_PROD.split(",").map(u => u.trim());
+          if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+          }
         }
         return callback(new Error(`CORS: origin "${origin}" is not allowed`));
       }
