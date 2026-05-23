@@ -502,7 +502,7 @@ export default function BookingPage() {
             </div>
             <div className="flex items-center gap-3 text-neutral-300">
               <Video className="h-5 w-5 shrink-0 text-neutral-500" />
-              <span className="text-[15px] font-medium">Cal Video</span>
+              <a href="https://meet.google.com/opp-hnpg-gpx" target="_blank" rel="noreferrer" className="text-[15px] font-medium text-blue-400 hover:underline">Cal Video</a>
             </div>
             <div className="flex items-center gap-3 text-neutral-300">
               <Globe className="h-5 w-5 shrink-0 text-neutral-500" />

@@ -86,7 +86,9 @@ export default function BookingSuccess() {
             <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-6">
               <div className="w-16 shrink-0 text-[15px] font-semibold text-white">Where</div>
               <div className="text-[15px] text-neutral-300 font-medium flex items-center gap-2">
-                Cal Video <ExternalLink className="h-4 w-4 text-neutral-400" />
+                <a href="https://meet.google.com/opp-hnpg-gpx" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-blue-400 hover:underline">
+                  Cal Video <ExternalLink className="h-4 w-4 text-neutral-400" />
+                </a>
               </div>
             </div>
 

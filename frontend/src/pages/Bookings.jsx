@@ -284,7 +284,7 @@ export default function Bookings() {
                       </div>
                       <div className="flex items-center gap-1.5 mt-1">
                          <Video className="h-[14px] w-[14px] text-neutral-400 shrink-0" />
-                         <span className="text-[14px] text-blue-400 font-medium hover:underline cursor-pointer">Join Cal Video</span>
+                         <a href="https://meet.google.com/opp-hnpg-gpx" target="_blank" rel="noreferrer" className="text-[14px] text-blue-400 font-medium hover:underline">Join Cal Video</a>
                       </div>
                     </div>
                     
@@ -450,7 +450,7 @@ export default function Bookings() {
               <div className="flex items-center gap-2">
                 <Video className="h-4 w-4 text-neutral-400 shrink-0" />
                 <span className="text-[14px] text-white">Cal Video: </span>
-                <span className="text-[14px] text-blue-400 cursor-pointer hover:underline truncate">https://app.cal.com/video/qotNao...</span>
+                <a href="https://meet.google.com/opp-hnpg-gpx" target="_blank" rel="noreferrer" className="text-[14px] text-blue-400 cursor-pointer hover:underline truncate">https://meet.google.com/opp-hnpg-gpx</a>
               </div>
             </div>
             
@@ -469,9 +469,9 @@ export default function Bookings() {
           </div>
 
           <div className="mt-8 pt-4 border-t border-neutral-800 flex items-center justify-between">
-            <button className="flex items-center gap-2 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white text-[14px] font-medium rounded-lg transition-colors">
+            <a href="https://meet.google.com/opp-hnpg-gpx" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white text-[14px] font-medium rounded-lg transition-colors">
               <Video className="h-4 w-4" /> Join Cal Video
-            </button>
+            </a>
             <div className="relative">
               <button 
                 onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === selectedBooking.id ? null : selectedBooking.id); }}
